@@ -17,8 +17,6 @@ const SHEETS = {
   SEM_PLANO: ['Sem Plano', '⛔ Sem Plano']
 };
 
-const HEADER_ROW_CANDIDATES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-
 // ---- PONTO DE ENTRADA: Servir o Dashboard HTML ----
 function doGet() {
   return HtmlService
@@ -49,9 +47,9 @@ function getDashboardData(filters) {
     const semPlanoSheet = readSemPlano(ss);
     const mesesVenc = readMesesVencimento(ss);
 
-    const resumoBase = hasRowsWithPlaca(resumo) ? resumo : computed.resumo;
-    const acompanhamentoBase = hasRowsWithPlaca(acompanhamento) ? acompanhamento : computed.acompanhamento;
-    const semPlanoBase = hasRowsWithPlaca(semPlanoSheet) ? semPlanoSheet : computed.semPlano;
+    const resumoBase = resumo.length ? resumo : computed.resumo;
+    const acompanhamentoBase = acompanhamento.length ? acompanhamento : computed.acompanhamento;
+    const semPlanoBase = semPlanoSheet.length ? semPlanoSheet : computed.semPlano;
 
     const filterOptions = buildFilterOptions(cadastro, resumoBase);
     const resumoFiltrado = applyFilters(resumoBase, filters);
@@ -106,29 +104,20 @@ function getSheetByNameAny(ss, names) {
 }
 
 function readSheet(ss, sheetNames, headerRow) {
-  return readSheetFallback(ss, sheetNames, headerRow ? [headerRow] : HEADER_ROW_CANDIDATES);
+  const sh = getSheetByNameAny(ss, sheetNames);
+  if (!sh) return [];
+  return rowsFromData(sh.getDataRange().getValues(), headerRow || 1);
 }
 
 function readSheetFallback(ss, sheetNames, headerRows) {
   const sh = getSheetByNameAny(ss, sheetNames);
   if (!sh) return [];
   const data = sh.getDataRange().getValues();
-  const rowsToTry = uniqueHeaderRows((headerRows || []).concat(HEADER_ROW_CANDIDATES));
-  for (let i = 0; i < rowsToTry.length; i++) {
-    const rows = rowsFromData(data, rowsToTry[i]);
+  for (let i = 0; i < headerRows.length; i++) {
+    const rows = rowsFromData(data, headerRows[i]);
     if (rows.length) return rows;
   }
   return [];
-}
-
-function uniqueHeaderRows(rows) {
-  const seen = {};
-  return rows.filter(r => {
-    const n = Number(r);
-    if (!n || seen[n]) return false;
-    seen[n] = true;
-    return true;
-  });
 }
 
 function rowsFromData(data, headerRow) {
@@ -156,7 +145,7 @@ function normalizeRow(r) {
 }
 
 function readCadastro(ss) {
-  return readSheetFallback(ss, SHEETS.CADASTRO, HEADER_ROW_CANDIDATES).map(r => {
+  return readSheet(ss, SHEETS.CADASTRO, 1).map(r => {
     const n = normalizeRow(r);
     const placa = firstVal(n, ['Placa', 'PLACA', 'placa']);
     const modelo = firstVal(n, ['Modelo', 'MODELO', 'modelo']);
@@ -180,59 +169,44 @@ function readResumo(ss) {
 }
 
 function mapResumoRow(r) {
-  const n = normalizeRow(r);
-  const venc = firstVal(n, ['Vencimento', 'Mês Vencimento', 'Mes Vencimento', 'Unnamed: 22', 'vencimento']) || '';
+  const venc = r['Vencimento'] || r['Unnamed: 22'] || r['Mês Vencimento'] || r['Mes Vencimento'] || '';
   return {
     ...r,
-    Placa: firstVal(n, ['Placa', 'PLACA', 'placa']),
-    Modelo: firstVal(n, ['Modelo', 'MODELO', 'modelo']),
-    Tipo: firstVal(n, ['Tipo', 'Tipo Veículo', 'Tipo Veiculo', 'tipo', 'tipoveiculo']),
-    Cidade: firstVal(n, ['Cidade', 'Municipio', 'Município', 'cidade']),
-    'Centro de Custo': firstVal(n, ['Centro de Custo', 'Centro Custo', 'CC', 'centrodecusto', 'centrocusto']),
-    'Item Mais Crítico': firstVal(n, ['Item Mais Crítico', 'Item Mais Critico', 'Item Crítico', 'Item Critico', 'itemmaiscritico']),
-    'Status Geral': firstVal(n, ['Status Geral', 'Status', 'statusgeral', 'status']),
-    'KM Atual': toNum(firstVal(n, ['KM Atual', 'KM', 'Km Atual', 'Hodômetro', 'Hodometro', 'kmatual'])),
-    'KM Últ.MNT': toNum(firstVal(n, ['KM Últ.MNT', 'KM Ult.MNT', 'KM Última MNT', 'KM Ultima MNT', 'KM Última Manutenção', 'KM Ultima Manutencao', 'kmultmnt'])),
-    'KM p/ Próxima': toNum(firstVal(n, ['KM p/ Próxima', 'KM p/ Proxima', 'KM Para Próxima', 'KM Para Proxima', 'kmpProxima', 'kmpproxima'])),
-    'Próx.MNT(km)': toNum(firstVal(n, ['Próx.MNT(km)', 'Prox.MNT(km)', 'Próxima MNT KM', 'Proxima MNT KM', 'proxmntkm'])),
-    'Total Itens': toNum(firstVal(n, ['Total Itens', 'Itens', 'totalitens'])),
-    Atrasados: toNum(firstVal(n, ['Atrasados', 'Atrasado', 'atrasados'])),
-    Urgentes: toNum(firstVal(n, ['Urgentes', 'Urgente', 'urgentes'])),
-    Próximos: toNum(firstVal(n, ['Próximos', 'Proximos', 'Próximo', 'Proximo', 'proximos'])),
-    OK: toNum(firstVal(n, ['OK', 'Ok', 'ok'])),
-    'Total Deveria': toNum(firstVal(n, ['Total Deveria', 'Deveria', 'totaldeveria'])),
-    'Total Realizado': toNum(firstVal(n, ['Total Realizado', 'Realizado', 'totalrealizado'])),
-    'Total Pendente': toNum(firstVal(n, ['Total Pendente', 'Pendente', 'totalpendente'])),
-    'Data Últ.MNT': toDateStr(firstVal(n, ['Data Últ.MNT', 'Data Ult.MNT', 'Data Última MNT', 'Data Ultima MNT', 'Data Última Manutenção', 'Data Ultima Manutencao', 'dataultmnt'])),
+    'KM Atual': toNum(r['KM Atual']),
+    'KM Últ.MNT': toNum(r['KM Últ.MNT']),
+    'KM p/ Próxima': toNum(r['KM p/ Próxima']),
+    'Próx.MNT(km)': toNum(r['Próx.MNT(km)']),
+    'Total Itens': toNum(r['Total Itens']),
+    'Atrasados': toNum(r['Atrasados']),
+    'Urgentes': toNum(r['Urgentes']),
+    'Próximos': toNum(r['Próximos']),
+    'OK': toNum(r['OK']),
+    'Total Deveria': toNum(r['Total Deveria']),
+    'Total Realizado': toNum(r['Total Realizado']),
+    'Total Pendente': toNum(r['Total Pendente']),
+    'Data Últ.MNT': toDateStr(r['Data Últ.MNT']),
     Vencimento: venc,
     'Unnamed: 22': venc
   };
 }
+
 function readAcompanhamento(ss) {
   const rows = readSheetFallback(ss, SHEETS.ACOMPANHAMENTO, [3, 1]);
-  return rows.map(r => {
-    const n = normalizeRow(r);
-    return {
-      ...r,
-      Placa: firstVal(n, ['Placa', 'PLACA', 'placa']),
-      Modelo: firstVal(n, ['Modelo', 'MODELO', 'modelo']),
-      Tipo: firstVal(n, ['Tipo', 'Tipo Veículo', 'Tipo Veiculo', 'tipo', 'tipoveiculo']),
-      'Centro de Custo': firstVal(n, ['Centro de Custo', 'Centro Custo', 'CC', 'centrodecusto', 'centrocusto']),
-      'Item MNT': firstVal(n, ['Item MNT', 'Item', 'Serviço', 'Servico', 'Descrição', 'Descricao', 'itemmnt', 'item']),
-      Status: firstVal(n, ['Status', 'Status Geral', 'status', 'statusgeral']),
-      'KM Atual': toNum(firstVal(n, ['KM Atual', 'KM', 'Km Atual', 'Hodômetro', 'Hodometro', 'kmatual'])),
-      'KM Últ.MNT': toNum(firstVal(n, ['KM Últ.MNT', 'KM Ult.MNT', 'KM Última MNT', 'KM Ultima MNT', 'kmultmnt'])),
-      'KM Desde Últ.': toNum(firstVal(n, ['KM Desde Últ.', 'KM Desde Ult.', 'KM Desde Última', 'KM Desde Ultima', 'kmdesdeult'])),
-      'KM p/ Próxima': toNum(firstVal(n, ['KM p/ Próxima', 'KM p/ Proxima', 'KM Para Próxima', 'KM Para Proxima', 'kmpproxima'])),
-      'Próx.MNT(km)': toNum(firstVal(n, ['Próx.MNT(km)', 'Prox.MNT(km)', 'Próxima MNT KM', 'Proxima MNT KM', 'proxmntkm'])),
-      'Intervalo(km)': toNum(firstVal(n, ['Intervalo(km)', 'Intervalo KM', 'Periodicidade KM', 'KM Intervalo', 'intervalokm'])),
-      'Qtd Deveria': toNum(firstVal(n, ['Qtd Deveria', 'Quantidade Deveria', 'Deveria', 'qtddeveria'])),
-      'Qtd Realizada': toNum(firstVal(n, ['Qtd Realizada', 'Quantidade Realizada', 'Realizada', 'qtdrealizada'])),
-      'Qtd Pendente': toNum(firstVal(n, ['Qtd Pendente', 'Quantidade Pendente', 'Pendente', 'qtdpendente'])),
-      'Data Últ.MNT': toDateStr(firstVal(n, ['Data Últ.MNT', 'Data Ult.MNT', 'Data Última MNT', 'Data Ultima MNT', 'dataultmnt']))
-    };
-  }).filter(r => r.Placa);
+  return rows.map(r => ({
+    ...r,
+    'KM Atual': toNum(r['KM Atual']),
+    'KM Últ.MNT': toNum(r['KM Últ.MNT']),
+    'KM Desde Últ.': toNum(r['KM Desde Últ.']),
+    'KM p/ Próxima': toNum(r['KM p/ Próxima']),
+    'Próx.MNT(km)': toNum(r['Próx.MNT(km)']),
+    'Intervalo(km)': toNum(r['Intervalo(km)']),
+    'Qtd Deveria': toNum(r['Qtd Deveria']),
+    'Qtd Realizada': toNum(r['Qtd Realizada']),
+    'Qtd Pendente': toNum(r['Qtd Pendente']),
+    'Data Últ.MNT': toDateStr(r['Data Últ.MNT'])
+  }));
 }
+
 function readHistorico(ss) {
   const rows = readSheetFallback(ss, SHEETS.HISTORICO, [3, 1]);
   return rows.map(r => {
@@ -241,9 +215,9 @@ function readHistorico(ss) {
       ...r,
       Placa: firstVal(n, ['Placa', 'placa']),
       Modelo: firstVal(n, ['Modelo', 'modelo']),
-      'Item MNT': firstVal(n, ['Item MNT', 'Item', 'Serviço', 'Servico', 'Descrição', 'Descricao', 'Manutenção', 'Manutencao', 'itemmnt', 'item']),
+      'Item MNT': firstVal(n, ['Item MNT', 'Item', 'Serviço', 'Servico', 'itemmnt', 'item']),
       Tipo: firstVal(n, ['Tipo', 'tipo']),
-      'KM Manutenção': toNum(firstVal(n, ['KM Manutenção', 'KM Manutencao', 'KM', 'Km', 'Hodômetro', 'Hodometro', 'kmmanutencao'])),
+      'KM Manutenção': toNum(firstVal(n, ['KM Manutenção', 'KM Manutencao', 'KM', 'kmmanutencao'])),
       'Data Manutenção': toDateStr(firstVal(n, ['Data Manutenção', 'Data Manutencao', 'Data', 'datamanutencao']))
     };
   }).filter(r => r.Placa || r.Modelo || r['Item MNT']);
@@ -255,15 +229,15 @@ function readPlano(ss) {
     return {
       ...r,
       Modelo: firstVal(n, ['Modelo', 'modelo']),
-      'Item MNT': firstVal(n, ['Item MNT', 'Item', 'Serviço', 'Servico', 'Descrição', 'Descricao', 'Manutenção', 'Manutencao', 'itemmnt', 'item']),
-      'Intervalo(km)': toNum(firstVal(n, ['Intervalo(km)', 'Intervalo KM', 'Periodicidade KM', 'KM Intervalo', 'KM', 'Quilometragem', 'intervalokm', 'periodicidadekm'])),
-      'Intervalo(meses)': toNum(firstVal(n, ['Intervalo(meses)', 'Intervalo Meses', 'Periodicidade Meses', 'Meses', 'Prazo Meses', 'intervalomeses', 'periodicidademeses']))
+      'Item MNT': firstVal(n, ['Item MNT', 'Item', 'Serviço', 'Servico', 'itemmnt', 'item']),
+      'Intervalo(km)': toNum(firstVal(n, ['Intervalo(km)', 'Intervalo KM', 'KM Intervalo', 'intervalokm'])),
+      'Intervalo(meses)': toNum(firstVal(n, ['Intervalo(meses)', 'Intervalo Meses', 'Meses', 'intervalomeses']))
     };
   }).filter(r => r.Modelo && r['Item MNT']);
 }
 
 function readAbastecimentos(ss) {
-  return readSheetFallback(ss, SHEETS.ABASTECIMENTOS, HEADER_ROW_CANDIDATES).map(r => {
+  return readSheet(ss, SHEETS.ABASTECIMENTOS, 1).map(r => {
     const n = normalizeRow(r);
     return {
       ...r,
@@ -276,20 +250,9 @@ function readAbastecimentos(ss) {
 
 function readSemPlano(ss) {
   const rows = readSheetFallback(ss, SHEETS.SEM_PLANO, [2, 1]);
-  return rows.map(r => {
-    const n = normalizeRow(r);
-    const tipo = firstVal(n, ['Tipo Veículo', 'Tipo Veiculo', 'Tipo', 'tipoveiculo', 'tipo']);
-    return {
-      ...r,
-      Placa: firstVal(n, ['Placa', 'PLACA', 'placa']),
-      Modelo: firstVal(n, ['Modelo', 'MODELO', 'modelo']),
-      Tipo: tipo,
-      'Tipo Veículo': tipo,
-      'Centro de Custo': firstVal(n, ['Centro de Custo', 'Centro Custo', 'CC', 'centrodecusto', 'centrocusto']),
-      'KM Atual': toNum(firstVal(n, ['KM Atual', 'KM', 'Km Atual', 'Hodômetro', 'Hodometro', 'kmatual']))
-    };
-  }).filter(r => r.Placa);
+  return rows.map(r => ({ ...r, 'KM Atual': toNum(r['KM Atual']) }));
 }
+
 function readMesesVencimento(ss) {
   const sh = getSheetByNameAny(ss, SHEETS.MESES_VENC);
   if (!sh) return {};
@@ -635,17 +598,14 @@ function loadBaseTables(ss) {
   const plano = readPlano(ss);
   const abastecimentos = readAbastecimentos(ss);
   const computed = buildComputedViews(cadastro, plano, historico, abastecimentos);
-  const resumo = readResumo(ss);
-  const acompanhamento = readAcompanhamento(ss);
-  const semPlano = readSemPlano(ss);
   return {
     cadastro,
     historico,
     plano,
     abastecimentos,
-    resumo: hasRowsWithPlaca(resumo) ? resumo : computed.resumo,
-    acompanhamento: hasRowsWithPlaca(acompanhamento) ? acompanhamento : computed.acompanhamento,
-    semPlano: hasRowsWithPlaca(semPlano) ? semPlano : computed.semPlano
+    resumo: readResumo(ss).length ? readResumo(ss) : computed.resumo,
+    acompanhamento: readAcompanhamento(ss).length ? readAcompanhamento(ss) : computed.acompanhamento,
+    semPlano: readSemPlano(ss).length ? readSemPlano(ss) : computed.semPlano
   };
 }
 
@@ -763,23 +723,13 @@ function groupBy(arr, key) {
   return result;
 }
 
-function hasRowsWithPlaca(rows) {
-  return Array.isArray(rows) && rows.some(r => r && r.Placa);
-}
-
 function looksLikeHeader(headers) {
   const known = {
-    placa: true, modelo: true, item: true, itemmnt: true, centrodecusto: true, centrocusto: true, status: true, statusgeral: true,
+    placa: true, modelo: true, item: true, itemmnt: true, centrodecusto: true, status: true, statusgeral: true,
     km: true, kmatual: true, kmmanutencao: true, datamanutencao: true, data: true, tipo: true, tipoveiculo: true,
-    intervalokm: true, intervalomeses: true, periodicidadekm: true, periodicidademeses: true, vencimento: true, totalitens: true,
-    descricao: true, servico: true, manutencao: true, hodometro: true, odometro: true
+    intervalokm: true, intervalomeses: true, vencimento: true, totalitens: true
   };
-  let score = 0;
-  headers.forEach(h => {
-    const k = normKey(h);
-    if (known[k] || k.indexOf('placa') >= 0 || k.indexOf('status') >= 0 || k.indexOf('intervalo') >= 0 || k.indexOf('periodicidade') >= 0) score++;
-  });
-  return score >= 2;
+  return headers.some(h => known[normKey(h)] || normKey(h).indexOf('placa') >= 0 || normKey(h).indexOf('status') >= 0);
 }
 
 function normKey(k) {
@@ -796,18 +746,6 @@ function firstVal(obj, keys) {
     const nk = normKey(k);
     if (obj[k] !== undefined && obj[k] !== '') return obj[k];
     if (obj[nk] !== undefined && obj[nk] !== '') return obj[nk];
-  }
-
-  const objKeys = Object.keys(obj);
-  for (let i = 0; i < keys.length; i++) {
-    const nk = normKey(keys[i]);
-    if (nk.length < 4) continue;
-    for (let j = 0; j < objKeys.length; j++) {
-      const ok = normKey(objKeys[j]);
-      if ((ok.indexOf(nk) >= 0 || nk.indexOf(ok) >= 0) && obj[objKeys[j]] !== undefined && obj[objKeys[j]] !== '') {
-        return obj[objKeys[j]];
-      }
-    }
   }
   return '';
 }
