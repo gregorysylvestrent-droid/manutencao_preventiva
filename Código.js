@@ -1,23 +1,21 @@
 // ============================================================
 // MNTPREV DASHBOARD — Google Apps Script Backend
 // NorteTech Energia | Manutenção Preventiva
+// Versão corrigida: calcula tudo das bases brutas
 // ============================================================
 
-// ---- CONFIGURAÇÃO DE ABAS ----
-// Os nomes abaixo aceitam a nomenclatura original da planilha e os nomes
-// gerados em versões anteriores com emojis, para facilitar a implantação.
+// ---- NOMES DAS ABAS (aceita variações com/sem emoji) ----
 const SHEETS = {
-  CADASTRO: ['Cadastro', '🛻 Cadastro'],
-  HISTORICO: ['Histórico MNTPREV', 'Historico MNTPREV', '📂 Histórico MNTPREV'],
-  ACOMPANHAMENTO: ['Acompanhamento por Item', '📋 Acompanhamento por Item'],
-  RESUMO: ['Resumo por Veículo', 'Resumo por Veiculo', '🚗 Resumo por Veículo'],
-  ABASTECIMENTOS: ['Registro de Abastecimentos', 'Abastecimentos'],
-  MESES_VENC: ['Meses Vencimento'],
-  PLANO: ['Plano Mnt', 'Plano MNT', 'Plano Manutenção', 'Plano Manutencao', '⚙️ Plano Oficial'],
-  SEM_PLANO: ['Sem Plano', '⛔ Sem Plano']
+  CADASTRO:    ['🛻 Cadastro',                'Cadastro'],
+  HISTORICO:   ['📂 Histórico MNTPREV',       'Histórico MNTPREV',   'Historico MNTPREV'],
+  ACOMP:       ['📋 Acompanhamento por Item',  'Acompanhamento por Item'],
+  RESUMO:      ['🚗 Resumo por Veículo',       'Resumo por Veículo',  'Resumo por Veiculo'],
+  PLANO:       ['⚙️ Plano Oficial',            'Plano Oficial',       'Plano Mnt', 'Plano MNT'],
+  SEM_PLANO:   ['⛔ Sem Plano',               'Sem Plano'],
+  MESES_VENC:  ['Meses Vencimento']
 };
 
-// ---- PONTO DE ENTRADA: Servir o Dashboard HTML ----
+// ---- PONTO DE ENTRADA ----
 function doGet() {
   return HtmlService
     .createHtmlOutputFromFile('Dashboard')
@@ -27,50 +25,49 @@ function doGet() {
 }
 
 // ============================================================
-// FUNÇÃO PRINCIPAL: Carrega todos os dados do dashboard
+// FUNÇÃO PRINCIPAL — chamada pelo frontend
 // ============================================================
 function getDashboardData(filters) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     filters = filters || {};
 
-    const cadastro = readCadastro(ss);
-    const historico = readHistorico(ss);
-    const plano = readPlano(ss);
-    const abastecimentos = readAbastecimentos(ss);
+    // ── 1. Lê as bases brutas (sem fórmulas) ──
+    const cadastro    = readCadastro(ss);
+    const plano       = readPlano(ss);
+    const historico   = readHistorico(ss);
+    const semPlanoSh  = readSemPlano(ss);
 
-    // Se as abas calculadas existirem, elas são reaproveitadas. Se não existirem
-    // ou estiverem vazias, o painel calcula tudo diretamente das bases coladas.
-    const computed = buildComputedViews(cadastro, plano, historico, abastecimentos);
-    const resumo = readResumo(ss);
-    const acompanhamento = readAcompanhamento(ss);
-    const semPlanoSheet = readSemPlano(ss);
-    const mesesVenc = readMesesVencimento(ss);
+    // ── 2. Calcula visões computadas a partir das bases ──
+    const computed    = buildComputedViews(cadastro, plano, historico);
 
-    const resumoBase = resumo.length ? resumo : computed.resumo;
-    const acompanhamentoBase = acompanhamento.length ? acompanhamento : computed.acompanhamento;
-    const semPlanoBase = semPlanoSheet.length ? semPlanoSheet : computed.semPlano;
+    // ── 3. Tenta ler abas calculadas do Sheet; se vazias/com fórmulas, usa computed ──
+    const resumoSheet = readResumoSheet(ss);
+    const acompSheet  = readAcompSheet(ss);
 
-    const filterOptions = buildFilterOptions(cadastro, resumoBase);
-    const resumoFiltrado = applyFilters(resumoBase, filters);
-    const acompFiltrado = applyFilters(acompanhamentoBase, filters);
+    const resumoBase  = resumoSheet.length  ? resumoSheet  : computed.resumo;
+    const acompBase   = acompSheet.length   ? acompSheet   : computed.acomp;
+    const semPlanoBase = semPlanoSh.length  ? semPlanoSh   : computed.semPlano;
 
-    const kpis = computeKPIs(resumoFiltrado, acompFiltrado);
-    const statusDist = computeStatusDistribution(resumoFiltrado);
-    const tiposDist = computeTiposDistribution(resumoFiltrado);
-    const topCriticos = getTopCriticos(resumoFiltrado, 15);
+    // ── 4. Aplica filtros ──
+    const resumoFilt  = applyFilters(resumoBase, filters);
+    const acompFilt   = applyFilters(acompBase, filters);
+
+    // ── 5. Agrega KPIs e métricas ──
+    const kpis           = computeKPIs(resumoFilt);
+    const statusDist     = computeStatusDist(resumoFilt);
+    const tiposDist      = groupBy(resumoFilt, 'Tipo');
+    const topCriticos    = getTopCriticos(resumoFilt, 15);
     const historicoMensal = computeHistoricoMensal(historico);
-    const itensSummary = computeItensSummary(acompFiltrado);
-
-    const semPlanoSummary = {
+    const itensSummary   = computeItensSummary(acompFilt);
+    const semPlanoSum    = {
       total: semPlanoBase.length,
       porTipo: groupBy(semPlanoBase, 'Tipo Veículo'),
-      lista: semPlanoBase.slice(0, 50)
+      lista: semPlanoBase.slice(0, 100)
     };
-
-    const vencimentoSummary = Object.keys(mesesVenc).length
-      ? computeVencimentoSummary(mesesVenc, resumoFiltrado)
-      : computeVencimentoSummary({}, resumoFiltrado);
+    const mesesVenc      = readMesesVencimento(ss);
+    const vencimentoSum  = computeVencimentoSummary(mesesVenc, resumoFilt);
+    const filterOptions  = buildFilterOptions(resumoBase);
 
     return {
       success: true,
@@ -80,10 +77,10 @@ function getDashboardData(filters) {
       topCriticos,
       historicoMensal,
       itensSummary,
-      semPlanoSummary,
-      vencimentoSummary,
+      semPlanoSummary: semPlanoSum,
+      vencimentoSummary: vencimentoSum,
       filterOptions,
-      totalVeiculos: resumoFiltrado.length,
+      totalVeiculos: resumoFilt.length,
       timestamp: new Date().toISOString()
     };
   } catch (e) {
@@ -92,362 +89,357 @@ function getDashboardData(filters) {
 }
 
 // ============================================================
-// LEITURA DAS ABAS
+// LEITURA DAS ABAS BRUTAS
 // ============================================================
-function getSheetByNameAny(ss, names) {
-  const list = Array.isArray(names) ? names : [names];
-  for (let i = 0; i < list.length; i++) {
-    const sh = ss.getSheetByName(list[i]);
-    if (sh) return sh;
+
+function getSheet(ss, names) {
+  for (let i = 0; i < names.length; i++) {
+    const s = ss.getSheetByName(names[i]);
+    if (s) return s;
   }
   return null;
 }
 
-function readSheet(ss, sheetNames, headerRow) {
-  const sh = getSheetByNameAny(ss, sheetNames);
-  if (!sh) return [];
-  return rowsFromData(sh.getDataRange().getValues(), headerRow || 1);
-}
-
-function readSheetFallback(ss, sheetNames, headerRows) {
-  const sh = getSheetByNameAny(ss, sheetNames);
-  if (!sh) return [];
-  const data = sh.getDataRange().getValues();
-  for (let i = 0; i < headerRows.length; i++) {
-    const rows = rowsFromData(data, headerRows[i]);
-    if (rows.length) return rows;
-  }
-  return [];
-}
-
-function rowsFromData(data, headerRow) {
-  if (data.length < headerRow) return [];
-  const headers = data[headerRow - 1].map(h => String(h).trim());
-  if (headers.every(h => !h) || !looksLikeHeader(headers)) return [];
-  const rows = [];
-  for (let i = headerRow; i < data.length; i++) {
+/** Converte dados brutos [linha, coluna] em array de objetos usando o cabeçalho da linha headerIdx (base-0) */
+function sheetToObjects(data, headerIdx) {
+  if (!data || data.length <= headerIdx) return [];
+  const headers = data[headerIdx].map(h => String(h || '').trim());
+  const result = [];
+  for (let i = headerIdx + 1; i < data.length; i++) {
     const row = data[i];
-    if (row.every(c => c === '' || c === null || c === undefined)) continue;
+    // Ignora linhas completamente vazias
+    if (!row || row.every(c => c === '' || c === null || c === undefined)) continue;
+    // Ignora linhas cujo primeiro campo parece ser uma fórmula
+    if (typeof row[0] === 'string' && row[0].startsWith('=')) continue;
     const obj = {};
     headers.forEach((h, j) => { if (h) obj[h] = row[j]; });
-    rows.push(obj);
+    result.push(obj);
   }
-  return rows;
-}
-
-function normalizeRow(r) {
-  const out = { ...r };
-  Object.keys(r).forEach(k => {
-    const nk = normKey(k);
-    if (out[nk] === undefined) out[nk] = r[k];
-  });
-  return out;
+  return result;
 }
 
 function readCadastro(ss) {
-  return readSheet(ss, SHEETS.CADASTRO, 1).map(r => {
-    const n = normalizeRow(r);
-    const placa = firstVal(n, ['Placa', 'PLACA', 'placa']);
-    const modelo = firstVal(n, ['Modelo', 'MODELO', 'modelo']);
-    const centro = firstVal(n, ['Centro de Custo', 'Centro Custo', 'CC', 'centrodecusto', 'centrocusto']);
-    const tipo = firstVal(n, ['Tipo Veículo', 'Tipo Veiculo', 'Tipo', 'tipoveiculo', 'tipo']);
-    return {
-      ...r,
-      Placa: placa,
-      Modelo: modelo,
-      'Centro de Custo': centro,
-      Tipo: tipo,
-      'Tipo Veículo': tipo,
-      'KM Atual': toNum(firstVal(n, ['KM Atual', 'KM', 'km_atual', 'kmatual']))
-    };
-  }).filter(r => r.Placa);
-}
-
-function readResumo(ss) {
-  const rows = readSheetFallback(ss, SHEETS.RESUMO, [3, 1]);
-  return rows.map(mapResumoRow);
-}
-
-function mapResumoRow(r) {
-  const venc = r['Vencimento'] || r['Unnamed: 22'] || r['Mês Vencimento'] || r['Mes Vencimento'] || '';
-  return {
-    ...r,
-    'KM Atual': toNum(r['KM Atual']),
-    'KM Últ.MNT': toNum(r['KM Últ.MNT']),
-    'KM p/ Próxima': toNum(r['KM p/ Próxima']),
-    'Próx.MNT(km)': toNum(r['Próx.MNT(km)']),
-    'Total Itens': toNum(r['Total Itens']),
-    'Atrasados': toNum(r['Atrasados']),
-    'Urgentes': toNum(r['Urgentes']),
-    'Próximos': toNum(r['Próximos']),
-    'OK': toNum(r['OK']),
-    'Total Deveria': toNum(r['Total Deveria']),
-    'Total Realizado': toNum(r['Total Realizado']),
-    'Total Pendente': toNum(r['Total Pendente']),
-    'Data Últ.MNT': toDateStr(r['Data Últ.MNT']),
-    Vencimento: venc,
-    'Unnamed: 22': venc
-  };
-}
-
-function readAcompanhamento(ss) {
-  const rows = readSheetFallback(ss, SHEETS.ACOMPANHAMENTO, [3, 1]);
-  return rows.map(r => ({
-    ...r,
-    'KM Atual': toNum(r['KM Atual']),
-    'KM Últ.MNT': toNum(r['KM Últ.MNT']),
-    'KM Desde Últ.': toNum(r['KM Desde Últ.']),
-    'KM p/ Próxima': toNum(r['KM p/ Próxima']),
-    'Próx.MNT(km)': toNum(r['Próx.MNT(km)']),
-    'Intervalo(km)': toNum(r['Intervalo(km)']),
-    'Qtd Deveria': toNum(r['Qtd Deveria']),
-    'Qtd Realizada': toNum(r['Qtd Realizada']),
-    'Qtd Pendente': toNum(r['Qtd Pendente']),
-    'Data Últ.MNT': toDateStr(r['Data Últ.MNT'])
-  }));
-}
-
-function readHistorico(ss) {
-  const rows = readSheetFallback(ss, SHEETS.HISTORICO, [3, 1]);
-  return rows.map(r => {
-    const n = normalizeRow(r);
-    return {
-      ...r,
-      Placa: firstVal(n, ['Placa', 'placa']),
-      Modelo: firstVal(n, ['Modelo', 'modelo']),
-      'Item MNT': firstVal(n, ['Item MNT', 'Item', 'Serviço', 'Servico', 'itemmnt', 'item']),
-      Tipo: firstVal(n, ['Tipo', 'tipo']),
-      'KM Manutenção': toNum(firstVal(n, ['KM Manutenção', 'KM Manutencao', 'KM', 'kmmanutencao'])),
-      'Data Manutenção': toDateStr(firstVal(n, ['Data Manutenção', 'Data Manutencao', 'Data', 'datamanutencao']))
-    };
-  }).filter(r => r.Placa || r.Modelo || r['Item MNT']);
+  const sh = getSheet(ss, SHEETS.CADASTRO);
+  if (!sh) return [];
+  const data = sh.getDataRange().getValues();
+  return sheetToObjects(data, 0)
+    .filter(r => r['Placa'])
+    .map(r => ({
+      Placa:            String(r['Placa'] || '').trim(),
+      Modelo:           String(r['Descrição Modelo'] || r['Modelo'] || '').trim(),
+      Tipo:             String(r['Tipo veiculo'] || r['Tipo Veículo'] || r['Tipo'] || '').trim(),
+      Cidade:           String(r['Cidade'] || '').trim(),
+      'Centro de Custo': String(r['Centro Custo'] || r['Centro de Custo'] || '').trim(),
+      'Cod Centro Custo': String(r['Cod Centro Custo'] || '').trim(),
+      Estado:           String(r['Estado'] || '').trim(),
+      'Ano Fabricação': r['Ano Fabricação'] || ''
+    }));
 }
 
 function readPlano(ss) {
-  return readSheetFallback(ss, SHEETS.PLANO, [2, 1]).map(r => {
-    const n = normalizeRow(r);
-    return {
-      ...r,
-      Modelo: firstVal(n, ['Modelo', 'modelo']),
-      'Item MNT': firstVal(n, ['Item MNT', 'Item', 'Serviço', 'Servico', 'itemmnt', 'item']),
-      'Intervalo(km)': toNum(firstVal(n, ['Intervalo(km)', 'Intervalo KM', 'KM Intervalo', 'intervalokm'])),
-      'Intervalo(meses)': toNum(firstVal(n, ['Intervalo(meses)', 'Intervalo Meses', 'Meses', 'intervalomeses']))
-    };
-  }).filter(r => r.Modelo && r['Item MNT']);
+  const sh = getSheet(ss, SHEETS.PLANO);
+  if (!sh) return [];
+  const data = sh.getDataRange().getValues();
+  // Cabeçalho na linha 2 (índice 1); linha 1 é título
+  const rows = sheetToObjects(data, 1);
+  return rows
+    .filter(r => r['Modelo'] && (r['Item MNT (MNTPREV)'] || r['Item MNT']))
+    .map(r => ({
+      Modelo:          String(r['Modelo'] || '').trim(),
+      'Item MNT':      String(r['Item MNT (MNTPREV)'] || r['Item MNT'] || '').trim(),
+      'Intervalo(km)': toNum(r['Intervalo (km)'] || r['Intervalo(km)'] || 0),
+      'Vida Útil Meses': toNum(r['Vida Útil Meses'] || 0),
+      Tipo:            String(r['Tipo'] || '').trim()
+    }));
 }
 
-function readAbastecimentos(ss) {
-  return readSheet(ss, SHEETS.ABASTECIMENTOS, 1).map(r => {
-    const n = normalizeRow(r);
-    return {
-      ...r,
-      Placa: firstVal(n, ['Placa', 'placa']),
-      Data: toDateStr(firstVal(n, ['Data', 'Data Abastecimento', 'dataabastecimento'])),
-      KM: toNum(firstVal(n, ['KM', 'Km', 'Hodômetro', 'Hodometro', 'Odometro', 'km']))
-    };
-  }).filter(r => r.Placa);
+function readHistorico(ss) {
+  const sh = getSheet(ss, SHEETS.HISTORICO);
+  if (!sh) return [];
+  const data = sh.getDataRange().getValues();
+  // Cabeçalho na linha 3 (índice 2); linhas 1-2 são título/aviso
+  const rows = sheetToObjects(data, 2);
+  return rows
+    .filter(r => r['Placa'])
+    .map(r => ({
+      Placa:              String(r['Placa'] || '').trim(),
+      Modelo:             String(r['Modelo'] || '').trim(),
+      'Centro de Custo':  String(r['Centro de Custo'] || '').trim(),
+      'Item MNT':         String(r['Item MNT'] || '').trim(),
+      'KM Manutenção':    toNum(r['KM Manutenção']),
+      'Data Manutenção':  toDateStr(r['Data Manutenção']),
+      Tipo:               String(r['Tipo'] || '').trim(),
+      'Situação Manut.':  String(r['Situação Manut.'] || '').trim(),
+      Oficina:            String(r['Oficina'] || '').trim()
+    }));
 }
 
 function readSemPlano(ss) {
-  const rows = readSheetFallback(ss, SHEETS.SEM_PLANO, [2, 1]);
-  return rows.map(r => ({ ...r, 'KM Atual': toNum(r['KM Atual']) }));
+  const sh = getSheet(ss, SHEETS.SEM_PLANO);
+  if (!sh) return [];
+  const data = sh.getDataRange().getValues();
+  // Cabeçalho na linha 2 (índice 1); linha 1 é título
+  return sheetToObjects(data, 1)
+    .filter(r => r['Placa'])
+    .map(r => ({
+      Placa:             String(r['Placa'] || '').trim(),
+      Modelo:            String(r['Modelo'] || '').trim(),
+      'Tipo Veículo':    String(r['Tipo Veículo'] || '').trim(),
+      Cidade:            String(r['Cidade'] || '').trim(),
+      'Centro de Custo': String(r['Centro de Custo'] || '').trim(),
+      'KM Atual':        toNum(r['KM Atual']),
+      Ativo:             String(r['Ativo'] || '').trim()
+    }));
+}
+
+/** Tenta ler a aba de Resumo por Veículo, descartando linhas que contenham fórmulas */
+function readResumoSheet(ss) {
+  const sh = getSheet(ss, SHEETS.RESUMO);
+  if (!sh) return [];
+  const data = sh.getDataRange().getValues();
+  // Cabeçalho linha 3 (índice 2)
+  const rows = sheetToObjects(data, 2);
+  // Filtra linhas que ainda têm fórmulas como string nos campos numéricos-chave
+  return rows.filter(r =>
+    r['Placa'] &&
+    typeof r['KM Atual'] !== 'string' &&
+    typeof r['Total Itens'] !== 'string'
+  ).map(mapResumoRow);
+}
+
+/** Tenta ler a aba de Acompanhamento, descartando linhas com fórmulas */
+function readAcompSheet(ss) {
+  const sh = getSheet(ss, SHEETS.ACOMP);
+  if (!sh) return [];
+  const data = sh.getDataRange().getValues();
+  const rows = sheetToObjects(data, 2);
+  return rows.filter(r =>
+    r['Placa'] &&
+    typeof r['KM Últ.MNT'] !== 'string' &&
+    !(typeof r['KM Últ.MNT'] === 'string' && r['KM Últ.MNT'].startsWith('='))
+  ).map(r => ({
+    ...r,
+    'KM Atual':        toNum(r['KM Atual']),
+    'KM Últ.MNT':     toNum(r['KM Últ.MNT']),
+    'KM Desde Últ.':  toNum(r['KM Desde Últ.']),
+    'KM p/ Próxima':  toNum(r['KM p/ Próxima']),
+    'Próx.MNT(km)':   toNum(r['Próx.MNT(km)']),
+    'Intervalo(km)':  toNum(r['Intervalo(km)']),
+    'Qtd Deveria':    toNum(r['Qtd Deveria']),
+    'Qtd Realizada':  toNum(r['Qtd Realizada']),
+    'Qtd Pendente':   toNum(r['Qtd Pendente']),
+    'Data Últ.MNT':   toDateStr(r['Data Últ.MNT'])
+  }));
 }
 
 function readMesesVencimento(ss) {
-  const sh = getSheetByNameAny(ss, SHEETS.MESES_VENC);
+  const sh = getSheet(ss, SHEETS.MESES_VENC);
   if (!sh) return {};
   const data = sh.getDataRange().getValues();
   const result = {};
-  for (let r = 1; r < data.length; r++) {
-    for (let c = 0; c < data[r].length; c += 3) {
-      const placa = String(data[r][c] || '').trim();
-      const venc = String(data[r][c + 1] || '').trim();
-      if (placa && venc && placa !== 'Placa' && placa !== 'Total Geral') result[placa] = venc;
+  for (let r = 2; r < data.length; r++) {
+    const row = data[r];
+    for (let c = 0; c < row.length; c += 3) {
+      const placa = String(row[c] || '').trim();
+      const venc  = String(row[c + 1] || '').trim();
+      if (placa && venc && placa !== 'Placa' && placa !== 'Total Geral') {
+        result[placa] = venc;
+      }
     }
   }
   return result;
 }
 
 // ============================================================
-// CÁLCULOS A PARTIR DAS BASES COLADAS
+// CÁLCULO DAS VISÕES A PARTIR DAS BASES BRUTAS
 // ============================================================
-function buildComputedViews(cadastro, plano, historico, abastecimentos) {
+function buildComputedViews(cadastro, plano, historico) {
+  // Índice: modelo → itens do plano
   const planoPorModelo = {};
   plano.forEach(p => {
-    const modelo = String(p.Modelo || '').trim();
-    if (!planoPorModelo[modelo]) planoPorModelo[modelo] = [];
-    planoPorModelo[modelo].push(p);
+    const m = p.Modelo;
+    if (!planoPorModelo[m]) planoPorModelo[m] = [];
+    planoPorModelo[m].push(p);
   });
 
-  const kmAtualPorPlaca = latestKmByPlate(abastecimentos, cadastro);
-  const histPorPlacaItem = latestMaintenanceByPlateItem(historico);
-  const realizadosPorPlacaItem = countMaintenanceByPlateItem(historico);
-  const acompanhamento = [];
-  const resumo = [];
+  // Índice: "placa|item" → registro mais recente do histórico (maior KM)
+  const ultimoHistorico = {};
+  // Índice: "placa|item" → contagem de realizações
+  const countHistorico = {};
+  // Índice: placa → KM máximo encontrado no histórico
+  const kmMaxHistorico = {};
+
+  historico.forEach(h => {
+    const key = h.Placa + '|' + h['Item MNT'];
+    const km  = toNum(h['KM Manutenção']);
+    const prev = ultimoHistorico[key];
+    if (!prev || km > toNum(prev['KM Manutenção'])) {
+      ultimoHistorico[key] = h;
+    }
+    countHistorico[key] = (countHistorico[key] || 0) + 1;
+    if (!kmMaxHistorico[h.Placa] || km > kmMaxHistorico[h.Placa]) {
+      kmMaxHistorico[h.Placa] = km;
+    }
+  });
+
+  const acomp   = [];
+  const resumo  = [];
   const semPlano = [];
 
   cadastro.forEach(v => {
-    const itensPlano = planoPorModelo[String(v.Modelo || '').trim()] || [];
-    const kmAtual = kmAtualPorPlaca[v.Placa] || toNum(v['KM Atual']);
+    const itensPlano = planoPorModelo[v.Modelo] || [];
+    // KM atual: melhor estimativa possível
+    const kmAtual = kmMaxHistorico[v.Placa] || toNum(v['KM Atual']) || 0;
+
     if (!itensPlano.length) {
       semPlano.push({
-        Placa: v.Placa,
-        Modelo: v.Modelo,
-        'Tipo Veículo': v['Tipo Veículo'] || v.Tipo,
+        Placa:             v.Placa,
+        Modelo:            v.Modelo,
+        'Tipo Veículo':    v.Tipo,
+        Cidade:            v.Cidade,
         'Centro de Custo': v['Centro de Custo'],
-        'KM Atual': kmAtual
+        'KM Atual':        kmAtual
       });
       return;
     }
 
-    const rows = itensPlano.map(item => computeItemRow(v, item, kmAtual, histPorPlacaItem, realizadosPorPlacaItem));
-    acompanhamento.push(...rows);
-    resumo.push(computeResumoRow(v, kmAtual, rows));
+    const linhasAcomp = itensPlano.map(item => {
+      const key     = v.Placa + '|' + item['Item MNT'];
+      const ult     = ultimoHistorico[key] || {};
+      const kmUlt   = toNum(ult['KM Manutenção']) || 0;
+      const intv    = toNum(item['Intervalo(km)']) || 0;
+      const kmDesde = kmAtual - kmUlt;
+      const proxKm  = intv ? kmUlt + intv : 0;
+      const kmParaProx = proxKm ? proxKm - kmAtual : null;
+      const qtdDev  = intv && kmAtual > 0 ? Math.max(0, Math.floor(kmAtual / intv)) : 0;
+      const qtdReal = countHistorico[key] || 0;
+      const qtdPend = Math.max(0, qtdDev - qtdReal);
+      const status  = calcStatus(kmParaProx, intv, qtdPend);
+
+      return {
+        Placa:             v.Placa,
+        Modelo:            v.Modelo,
+        Tipo:              v.Tipo,
+        Cidade:            v.Cidade,
+        'Centro de Custo': v['Centro de Custo'],
+        'Item MNT':        item['Item MNT'],
+        'Intervalo(km)':   intv,
+        'KM Atual':        kmAtual,
+        'KM Últ.MNT':     kmUlt,
+        'KM Desde Últ.':  kmDesde,
+        'Próx.MNT(km)':   proxKm,
+        'KM p/ Próxima':  kmParaProx !== null ? kmParaProx : '',
+        'Qtd Deveria':     qtdDev,
+        'Qtd Realizada':   qtdReal,
+        'Qtd Pendente':    qtdPend,
+        'Data Últ.MNT':   ult['Data Manutenção'] || '',
+        Status:            status
+      };
+    });
+
+    acomp.push(...linhasAcomp);
+
+    // Linha de resumo por veículo
+    const counts = { ATRASADO: 0, URGENTE: 0, PRÓXIMO: 0, OK: 0, 'SEM DADO': 0 };
+    linhasAcomp.forEach(l => { counts[l.Status] = (counts[l.Status] || 0) + 1; });
+
+    // Item mais crítico = pior status e menor KM para próxima
+    const sorted = [...linhasAcomp].sort((a, b) =>
+      statusScore(b.Status) - statusScore(a.Status) ||
+      (toNum(a['KM p/ Próxima']) || 99999) - (toNum(b['KM p/ Próxima']) || 99999)
+    );
+    const critico = sorted[0] || {};
+    const statusGeral = critico.Status || 'SEM DADO';
+
+    const totalDev  = linhasAcomp.reduce((s, l) => s + l['Qtd Deveria'], 0);
+    const totalReal = linhasAcomp.reduce((s, l) => s + l['Qtd Realizada'], 0);
+    const totalPend = linhasAcomp.reduce((s, l) => s + l['Qtd Pendente'], 0);
+
+    resumo.push(mapResumoRow({
+      Placa:              v.Placa,
+      Modelo:             v.Modelo,
+      Tipo:               v.Tipo,
+      Cidade:             v.Cidade,
+      'Centro de Custo':  v['Centro de Custo'],
+      'KM Atual':         kmAtual,
+      'KM Últ.MNT':      toNum(critico['KM Últ.MNT']),
+      'Data Últ.MNT':    critico['Data Últ.MNT'] || '',
+      'Item Mais Crítico': critico['Item MNT'] || '',
+      'KM p/ Próxima':   toNum(critico['KM p/ Próxima']) || 0,
+      'Próx.MNT(km)':    toNum(critico['Próx.MNT(km)']) || 0,
+      'Total Itens':      linhasAcomp.length,
+      Atrasados:          counts.ATRASADO,
+      Urgentes:           counts.URGENTE,
+      Próximos:           counts.PRÓXIMO,
+      OK:                 counts.OK,
+      'Sem Dado':         counts['SEM DADO'],
+      'Total Deveria':    totalDev,
+      'Total Realizado':  totalReal,
+      'Total Pendente':   totalPend,
+      'Status Geral':     statusGeral,
+      Vencimento:         ''  // preenchido depois via Meses Vencimento
+    }));
   });
 
-  return { resumo, acompanhamento, semPlano };
+  return { resumo, acomp, semPlano };
 }
 
-function computeItemRow(veiculo, item, kmAtual, histPorPlacaItem, realizadosPorPlacaItem) {
-  const key = veiculo.Placa + '|' + item['Item MNT'];
-  const last = histPorPlacaItem[key] || {};
-  const kmUlt = toNum(last['KM Manutenção']);
-  const intervaloKm = toNum(item['Intervalo(km)']);
-  const kmDesdeUlt = kmUlt ? kmAtual - kmUlt : kmAtual;
-  const proxKm = intervaloKm ? kmUlt + intervaloKm : 0;
-  const kmParaProx = proxKm ? proxKm - kmAtual : 0;
-  const qtdDeveria = intervaloKm ? Math.max(0, Math.floor(kmAtual / intervaloKm)) : 0;
-  const qtdRealizada = realizadosPorPlacaItem[key] || 0;
-  const qtdPendente = Math.max(0, qtdDeveria - qtdRealizada);
-  const status = statusByKm(kmParaProx, intervaloKm, qtdPendente);
-
+function mapResumoRow(r) {
   return {
-    Placa: veiculo.Placa,
-    Modelo: veiculo.Modelo,
-    Tipo: veiculo.Tipo || veiculo['Tipo Veículo'],
-    Cidade: veiculo.Cidade || '',
-    'Centro de Custo': veiculo['Centro de Custo'],
-    'Item MNT': item['Item MNT'],
-    'KM Atual': kmAtual,
-    'KM Últ.MNT': kmUlt,
-    'KM Desde Últ.': kmDesdeUlt,
-    'Próx.MNT(km)': proxKm,
-    'KM p/ Próxima': kmParaProx,
-    'Intervalo(km)': intervaloKm,
-    'Qtd Deveria': qtdDeveria,
-    'Qtd Realizada': qtdRealizada,
-    'Qtd Pendente': qtdPendente,
-    'Data Últ.MNT': last['Data Manutenção'] || '',
-    Status: status
+    ...r,
+    'KM Atual':        toNum(r['KM Atual']),
+    'KM Últ.MNT':     toNum(r['KM Últ.MNT']),
+    'KM p/ Próxima':  toNum(r['KM p/ Próxima']),
+    'Próx.MNT(km)':   toNum(r['Próx.MNT(km)']),
+    'Total Itens':     toNum(r['Total Itens']),
+    Atrasados:         toNum(r['Atrasados']),
+    Urgentes:          toNum(r['Urgentes']),
+    Próximos:          toNum(r['Próximos']),
+    OK:                toNum(r['OK']),
+    'Total Deveria':   toNum(r['Total Deveria']),
+    'Total Realizado': toNum(r['Total Realizado']),
+    'Total Pendente':  toNum(r['Total Pendente']),
+    'Data Últ.MNT':   toDateStr(r['Data Últ.MNT'])
   };
 }
 
-function computeResumoRow(veiculo, kmAtual, itens) {
-  const counts = { ATRASADO: 0, URGENTE: 0, 'PRÓXIMO': 0, OK: 0 };
-  itens.forEach(i => { counts[i.Status] = (counts[i.Status] || 0) + 1; });
-  const criticos = itens.slice().sort((a, b) => statusScore(b.Status) - statusScore(a.Status) || a['KM p/ Próxima'] - b['KM p/ Próxima']);
-  const itemCritico = criticos[0] || {};
-  const statusGeral = itemCritico.Status || 'SEM DADO';
-  const totalDeveria = itens.reduce((s, i) => s + (i['Qtd Deveria'] || 0), 0);
-  const totalRealizado = itens.reduce((s, i) => s + (i['Qtd Realizada'] || 0), 0);
-  const totalPendente = itens.reduce((s, i) => s + (i['Qtd Pendente'] || 0), 0);
-  const vencimento = statusGeral === 'ATRASADO' ? 'Vencida' : nextMonthLabel(itemCritico['KM p/ Próxima']);
-
-  return mapResumoRow({
-    Placa: veiculo.Placa,
-    Modelo: veiculo.Modelo,
-    Tipo: veiculo.Tipo || veiculo['Tipo Veículo'],
-    Cidade: veiculo.Cidade || '',
-    'Centro de Custo': veiculo['Centro de Custo'],
-    'KM Atual': kmAtual,
-    'KM Últ.MNT': itemCritico['KM Últ.MNT'] || 0,
-    'Data Últ.MNT': itemCritico['Data Últ.MNT'] || '',
-    'Item Mais Crítico': itemCritico['Item MNT'] || '',
-    'KM p/ Próxima': itemCritico['KM p/ Próxima'] || 0,
-    'Próx.MNT(km)': itemCritico['Próx.MNT(km)'] || 0,
-    'Total Itens': itens.length,
-    Atrasados: counts.ATRASADO || 0,
-    Urgentes: counts.URGENTE || 0,
-    Próximos: counts['PRÓXIMO'] || 0,
-    OK: counts.OK || 0,
-    'Total Deveria': totalDeveria,
-    'Total Realizado': totalRealizado,
-    'Total Pendente': totalPendente,
-    'Status Geral': statusGeral,
-    Vencimento: vencimento
-  });
-}
-
-function statusByKm(kmParaProx, intervaloKm, qtdPendente) {
-  if (qtdPendente > 0 || (intervaloKm && kmParaProx < 0)) return 'ATRASADO';
-  if (intervaloKm && kmParaProx <= Math.max(1000, intervaloKm * 0.1)) return 'URGENTE';
-  if (intervaloKm && kmParaProx <= Math.max(3000, intervaloKm * 0.2)) return 'PRÓXIMO';
+function calcStatus(kmParaProx, intervalo, qtdPendente) {
+  if (qtdPendente > 0) return 'ATRASADO';
+  if (kmParaProx === null || kmParaProx === '') return 'SEM DADO';
+  const kp = toNum(kmParaProx);
+  if (kp < 0) return 'ATRASADO';
+  const limUrg  = Math.max(1000, toNum(intervalo) * 0.1);
+  const limProx = Math.max(3000, toNum(intervalo) * 0.2);
+  if (kp <= limUrg)  return 'URGENTE';
+  if (kp <= limProx) return 'PRÓXIMO';
   return 'OK';
 }
 
-function statusScore(status) {
-  const s = String(status || '').toUpperCase();
-  if (s === 'ATRASADO') return 4;
-  if (s === 'URGENTE') return 3;
-  if (s === 'PRÓXIMO' || s === 'PROXIMO') return 2;
-  if (s === 'OK') return 1;
+function statusScore(s) {
+  const u = String(s || '').toUpperCase();
+  if (u === 'ATRASADO') return 4;
+  if (u === 'URGENTE')  return 3;
+  if (u === 'PRÓXIMO')  return 2;
+  if (u === 'OK')       return 1;
   return 0;
-}
-
-function nextMonthLabel(kmParaProx) {
-  if (kmParaProx < 0) return 'Vencida';
-  const monthNames = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-  const d = new Date();
-  d.setMonth(d.getMonth() + Math.min(11, Math.max(0, Math.ceil(kmParaProx / 3000))));
-  return monthNames[d.getMonth()];
-}
-
-function latestKmByPlate(abastecimentos, cadastro) {
-  const latest = {};
-  abastecimentos.forEach(a => {
-    const t = parseDate(a.Data).getTime() || 0;
-    if (!latest[a.Placa] || t >= latest[a.Placa].t) latest[a.Placa] = { km: toNum(a.KM), t };
-  });
-  cadastro.forEach(v => {
-    if (!latest[v.Placa] && toNum(v['KM Atual'])) latest[v.Placa] = { km: toNum(v['KM Atual']), t: 0 };
-  });
-  const out = {};
-  Object.keys(latest).forEach(p => { out[p] = latest[p].km; });
-  return out;
-}
-
-function latestMaintenanceByPlateItem(historico) {
-  const latest = {};
-  historico.forEach(h => {
-    const key = h.Placa + '|' + h['Item MNT'];
-    const t = parseDate(h['Data Manutenção']).getTime() || 0;
-    if (!latest[key] || t >= latest[key].t) latest[key] = { ...h, t };
-  });
-  return latest;
-}
-
-function countMaintenanceByPlateItem(historico) {
-  const counts = {};
-  historico.forEach(h => {
-    const key = h.Placa + '|' + h['Item MNT'];
-    counts[key] = (counts[key] || 0) + 1;
-  });
-  return counts;
 }
 
 // ============================================================
 // FILTROS
 // ============================================================
 function applyFilters(rows, filters) {
-  if (!filters || Object.keys(filters).length === 0) return rows;
+  if (!filters || !Object.keys(filters).some(k => (filters[k] || []).length > 0)) return rows;
   return rows.filter(r => {
-    if (filters.placas && filters.placas.length > 0 && !filters.placas.includes(r.Placa)) return false;
-    if (filters.modelos && filters.modelos.length > 0 && !filters.modelos.includes(r.Modelo)) return false;
+    if (filters.placas && filters.placas.length > 0 &&
+        !filters.placas.includes(r.Placa)) return false;
+    if (filters.modelos && filters.modelos.length > 0 &&
+        !filters.modelos.includes(r.Modelo)) return false;
     if (filters.centrosCusto && filters.centrosCusto.length > 0) {
-      const cc = r['Centro de Custo'] || r['Centro Custo'] || '';
+      const cc = r['Centro de Custo'] || '';
       if (!filters.centrosCusto.includes(cc)) return false;
     }
-    if (filters.tipos && filters.tipos.length > 0 && !filters.tipos.includes(r.Tipo)) return false;
+    if (filters.tipos && filters.tipos.length > 0 &&
+        !filters.tipos.includes(r.Tipo)) return false;
     if (filters.status && filters.status.length > 0) {
       const st = r['Status Geral'] || r.Status || '';
       if (!filters.status.includes(st)) return false;
@@ -456,94 +448,88 @@ function applyFilters(rows, filters) {
   });
 }
 
-function buildFilterOptions(cadastro, resumo) {
-  const unique = (arr, key) => [...new Set(arr.map(r => r[key]).filter(Boolean))].sort();
+function buildFilterOptions(resumo) {
+  const unique = (key) => [...new Set(resumo.map(r => r[key]).filter(Boolean))].sort();
   return {
-    placas: unique(resumo, 'Placa'),
-    modelos: unique(resumo, 'Modelo'),
-    centrosCusto: unique(resumo, 'Centro de Custo'),
-    tipos: unique(resumo, 'Tipo'),
-    status: ['OK', 'ATRASADO', 'URGENTE', 'PRÓXIMO']
+    placas:      unique('Placa'),
+    modelos:     unique('Modelo'),
+    centrosCusto: unique('Centro de Custo'),
+    tipos:       unique('Tipo'),
+    status:      ['OK', 'PRÓXIMO', 'URGENTE', 'ATRASADO', 'SEM DADO']
   };
 }
 
 // ============================================================
-// CÁLCULOS / KPIs
+// KPIs e MÉTRICAS
 // ============================================================
-function computeKPIs(resumo, acomp) {
-  const total = resumo.length;
-  const atrasados = resumo.filter(r => String(r['Status Geral'] || '').toUpperCase() === 'ATRASADO').length;
-  const urgentes = resumo.filter(r => String(r['Status Geral'] || '').toUpperCase() === 'URGENTE').length;
-  const proximos = resumo.filter(r => ['PRÓXIMO', 'PROXIMO'].includes(String(r['Status Geral'] || '').toUpperCase())).length;
-  const ok = resumo.filter(r => String(r['Status Geral'] || '').toUpperCase() === 'OK').length;
-  const semDado = total - atrasados - urgentes - proximos - ok;
-  const totalDeveria = resumo.reduce((s, r) => s + (r['Total Deveria'] || 0), 0);
-  const totalRealizado = resumo.reduce((s, r) => s + (r['Total Realizado'] || 0), 0);
-  const totalPendente = resumo.reduce((s, r) => s + (r['Total Pendente'] || 0), 0);
-  const aderencia = totalDeveria > 0 ? Math.round((totalRealizado / totalDeveria) * 100) : 0;
-  const vencidos = resumo.filter(r => String(r.Vencimento || r['Unnamed: 22'] || '').trim().toUpperCase() === 'VENCIDA').length;
-  const totalItens = resumo.reduce((s, r) => s + (r['Total Itens'] || 0), 0);
+function computeKPIs(resumo) {
+  const total      = resumo.length;
+  const atrasados  = resumo.filter(r => String(r['Status Geral'] || '').toUpperCase() === 'ATRASADO').length;
+  const urgentes   = resumo.filter(r => String(r['Status Geral'] || '').toUpperCase() === 'URGENTE').length;
+  const proximos   = resumo.filter(r => String(r['Status Geral'] || '').toUpperCase() === 'PRÓXIMO').length;
+  const ok         = resumo.filter(r => String(r['Status Geral'] || '').toUpperCase() === 'OK').length;
+  const semDado    = total - atrasados - urgentes - proximos - ok;
+  const totalDev   = resumo.reduce((s, r) => s + toNum(r['Total Deveria']), 0);
+  const totalReal  = resumo.reduce((s, r) => s + toNum(r['Total Realizado']), 0);
+  const totalPend  = resumo.reduce((s, r) => s + toNum(r['Total Pendente']), 0);
+  const aderencia  = totalDev > 0 ? Math.round((totalReal / totalDev) * 100) : 0;
+  const totalItens = resumo.reduce((s, r) => s + toNum(r['Total Itens']), 0);
 
   return {
     total, atrasados, urgentes, proximos, ok, semDado,
-    totalDeveria, totalRealizado, totalPendente,
-    aderencia, vencidos, totalItens,
+    totalDev, totalReal, totalPend, aderencia, totalItens,
     pctAtrasados: total > 0 ? Math.round((atrasados / total) * 100) : 0,
-    pctOK: total > 0 ? Math.round((ok / total) * 100) : 0
+    pctOK:        total > 0 ? Math.round((ok / total) * 100) : 0
   };
 }
 
-function computeStatusDistribution(resumo) {
-  const dist = {};
+function computeStatusDist(resumo) {
+  const d = {};
   resumo.forEach(r => {
     const s = String(r['Status Geral'] || 'SEM DADO').toUpperCase().trim();
-    dist[s] = (dist[s] || 0) + 1;
+    d[s] = (d[s] || 0) + 1;
   });
-  return dist;
-}
-
-function computeTiposDistribution(resumo) {
-  return groupBy(resumo, 'Tipo');
+  return d;
 }
 
 function getTopCriticos(resumo, n) {
   return resumo
-    .filter(r => r.Atrasados > 0 || r.Urgentes > 0)
-    .sort((a, b) => {
-      const scoreA = (a.Urgentes || 0) * 3 + (a.Atrasados || 0);
-      const scoreB = (b.Urgentes || 0) * 3 + (b.Atrasados || 0);
-      return scoreB - scoreA;
-    })
+    .filter(r => toNum(r.Atrasados) > 0 || toNum(r.Urgentes) > 0)
+    .sort((a, b) =>
+      (toNum(b.Urgentes) * 3 + toNum(b.Atrasados)) -
+      (toNum(a.Urgentes) * 3 + toNum(a.Atrasados))
+    )
     .slice(0, n)
     .map(r => ({
-      placa: r.Placa,
-      modelo: r.Modelo,
-      tipo: r.Tipo,
-      centroCusto: r['Centro de Custo'],
-      kmAtual: r['KM Atual'],
-      kmProxima: r['KM p/ Próxima'],
-      itemCritico: r['Item Mais Crítico'],
-      atrasados: r.Atrasados,
-      urgentes: r.Urgentes,
-      proximos: r.Próximos,
-      ok: r.OK,
-      status: r['Status Geral'],
-      vencimento: r.Vencimento || r['Unnamed: 22'] || ''
+      placa:        r.Placa,
+      modelo:       r.Modelo,
+      tipo:         r.Tipo,
+      cidade:       r.Cidade,
+      centroCusto:  r['Centro de Custo'],
+      kmAtual:      toNum(r['KM Atual']),
+      kmProxima:    toNum(r['KM p/ Próxima']),
+      itemCritico:  r['Item Mais Crítico'],
+      atrasados:    toNum(r.Atrasados),
+      urgentes:     toNum(r.Urgentes),
+      proximos:     toNum(r.Próximos),
+      ok:           toNum(r.OK),
+      status:       r['Status Geral'],
+      vencimento:   r.Vencimento || ''
     }));
 }
 
 function computeHistoricoMensal(historico) {
   const meses = {};
-  const hoje = new Date();
-  const limite = new Date(hoje.getFullYear() - 1, hoje.getMonth(), 1);
+  const limite = new Date();
+  limite.setFullYear(limite.getFullYear() - 1);
 
   historico.forEach(r => {
     const dt = parseDate(r['Data Manutenção']);
-    if (isNaN(dt) || dt < limite) return;
+    if (!dt || isNaN(dt) || dt < limite) return;
     const key = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0');
     if (!meses[key]) meses[key] = { preventiva: 0, corretiva: 0, total: 0 };
     const tipo = String(r.Tipo || '').toUpperCase();
-    if (tipo === 'PREVENTIVA') meses[key].preventiva++;
+    if (tipo === 'PREVENTIVA')  meses[key].preventiva++;
     else if (tipo === 'CORRETIVA') meses[key].corretiva++;
     meses[key].total++;
   });
@@ -557,69 +543,81 @@ function computeItensSummary(acomp) {
   const itens = {};
   acomp.forEach(r => {
     const item = r['Item MNT'] || 'Desconhecido';
-    if (!itens[item]) itens[item] = { atrasados: 0, ok: 0, total: 0, pendente: 0 };
+    if (!itens[item]) itens[item] = { atrasados: 0, ok: 0, urgentes: 0, total: 0, pendente: 0 };
     itens[item].total++;
     const st = String(r.Status || '').toUpperCase();
     if (st === 'ATRASADO') itens[item].atrasados++;
+    else if (st === 'URGENTE') itens[item].urgentes++;
     else if (st === 'OK') itens[item].ok++;
-    itens[item].pendente += (r['Qtd Pendente'] || 0);
+    itens[item].pendente += toNum(r['Qtd Pendente']);
   });
   return Object.entries(itens)
     .map(([item, v]) => ({ item, ...v }))
-    .sort((a, b) => b.atrasados - a.atrasados)
+    .sort((a, b) => b.atrasados - a.atrasados || b.urgentes - a.urgentes)
     .slice(0, 20);
 }
 
 function computeVencimentoSummary(mesesVenc, resumo) {
-  const grupos = {
-    '<2025': [], janeiro: [], fevereiro: [], março: [], abril: [], maio: [], junho: [], julho: [], agosto: [], setembro: [], outubro: [], novembro: [], dezembro: [], Vencida: [], Outros: []
-  };
-
+  const grupos = {};
   resumo.forEach(r => {
-    const placa = r.Placa;
-    const raw = mesesVenc[placa] || r.Vencimento || r['Unnamed: 22'] || '';
-    const v = String(raw).trim().toLowerCase();
-    if (v === 'vencida') grupos.Vencida.push(placa);
-    else if (grupos[v] !== undefined) grupos[v].push(placa);
-    else if (v) grupos.Outros.push(placa);
+    const v = String(mesesVenc[r.Placa] || r.Vencimento || 'Sem Info').trim();
+    grupos[v] = (grupos[v] || 0) + 1;
   });
-
   return Object.entries(grupos)
-    .map(([periodo, placas]) => ({ periodo, qtd: placas.length }))
-    .filter(e => e.qtd > 0);
+    .map(([periodo, qtd]) => ({ periodo, qtd }))
+    .filter(e => e.qtd > 0)
+    .sort((a, b) => b.qtd - a.qtd);
+}
+
+function groupBy(arr, key) {
+  const r = {};
+  arr.forEach(o => {
+    const k = o[key] || 'Sem Categoria';
+    r[k] = (r[k] || 0) + 1;
+  });
+  return r;
 }
 
 // ============================================================
-// FUNÇÕES PARA ABAS DETALHADAS (chamadas sob demanda)
+// FUNÇÕES CHAMADAS SOB DEMANDA (tabelas paginadas, detalhe)
 // ============================================================
-function loadBaseTables(ss) {
-  const cadastro = readCadastro(ss);
-  const historico = readHistorico(ss);
-  const plano = readPlano(ss);
-  const abastecimentos = readAbastecimentos(ss);
-  const computed = buildComputedViews(cadastro, plano, historico, abastecimentos);
-  return {
-    cadastro,
-    historico,
-    plano,
-    abastecimentos,
-    resumo: readResumo(ss).length ? readResumo(ss) : computed.resumo,
-    acompanhamento: readAcompanhamento(ss).length ? readAcompanhamento(ss) : computed.acompanhamento,
-    semPlano: readSemPlano(ss).length ? readSemPlano(ss) : computed.semPlano
-  };
-}
-
-function getVehicleDetail(placa) {
+function getResumoTable(filters, page, pageSize) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const data = loadBaseTables(ss);
-    const acomp = data.acompanhamento.filter(r => r.Placa === placa);
-    const resumo = data.resumo.find(r => r.Placa === placa) || {};
-    const hist = data.historico
-      .filter(r => r.Placa === placa)
-      .sort((a, b) => parseDate(b['Data Manutenção']) - parseDate(a['Data Manutenção']))
-      .slice(0, 30);
-    return { success: true, placa, resumo, itens: acomp, historico: hist };
+    page = page || 1;
+    pageSize = pageSize || 50;
+    const cadastro = readCadastro(ss);
+    const plano    = readPlano(ss);
+    const historico = readHistorico(ss);
+    const computed = buildComputedViews(cadastro, plano, historico);
+    const resumoSh = readResumoSheet(ss);
+    const base     = resumoSh.length ? resumoSh : computed.resumo;
+    const all      = applyFilters(base, filters || {});
+    const total    = all.length;
+    const start    = (page - 1) * pageSize;
+    const items    = all.slice(start, start + pageSize).map(r => ({
+      placa:       r.Placa,
+      modelo:      r.Modelo,
+      tipo:        r.Tipo,
+      cidade:      r.Cidade,
+      centroCusto: r['Centro de Custo'],
+      kmAtual:     toNum(r['KM Atual']),
+      kmUltMnt:    toNum(r['KM Últ.MNT']),
+      dataUltMnt:  r['Data Últ.MNT'] || '',
+      itemCritico: r['Item Mais Crítico'] || '',
+      kmProxima:   toNum(r['KM p/ Próxima']),
+      totalItens:  toNum(r['Total Itens']),
+      atrasados:   toNum(r.Atrasados),
+      urgentes:    toNum(r.Urgentes),
+      proximos:    toNum(r.Próximos),
+      ok:          toNum(r.OK),
+      totalDev:    toNum(r['Total Deveria']),
+      totalReal:   toNum(r['Total Realizado']),
+      totalPend:   toNum(r['Total Pendente']),
+      status:      r['Status Geral'] || '',
+      vencimento:  r.Vencimento || ''
+    }));
+    return { success: true, items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   } catch (e) {
     return { success: false, error: e.message };
   }
@@ -630,48 +628,42 @@ function getAcompanhamentoTable(filters, page, pageSize) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     page = page || 1;
     pageSize = pageSize || 50;
-    const all = applyFilters(loadBaseTables(ss).acompanhamento, filters || {});
-    const total = all.length;
-    const start = (page - 1) * pageSize;
-    const items = all.slice(start, start + pageSize);
+    const cadastro  = readCadastro(ss);
+    const plano     = readPlano(ss);
+    const historico = readHistorico(ss);
+    const computed  = buildComputedViews(cadastro, plano, historico);
+    const acompSh   = readAcompSheet(ss);
+    const base      = acompSh.length ? acompSh : computed.acomp;
+    const all       = applyFilters(base, filters || {});
+    const total     = all.length;
+    const start     = (page - 1) * pageSize;
+    const items     = all.slice(start, start + pageSize);
     return { success: true, items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   } catch (e) {
     return { success: false, error: e.message };
   }
 }
 
-function getResumoTable(filters, page, pageSize) {
+function getVehicleDetail(placa) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    page = page || 1;
-    pageSize = pageSize || 50;
-    const all = applyFilters(loadBaseTables(ss).resumo, filters || {});
-    const total = all.length;
-    const start = (page - 1) * pageSize;
-    const items = all.slice(start, start + pageSize).map(r => ({
-      placa: r.Placa,
-      modelo: r.Modelo,
-      tipo: r.Tipo,
-      cidade: r.Cidade,
-      centroCusto: r['Centro de Custo'],
-      kmAtual: r['KM Atual'],
-      kmUltMnt: r['KM Últ.MNT'],
-      dataUltMnt: r['Data Últ.MNT'],
-      itemCritico: r['Item Mais Crítico'],
-      kmProxima: r['KM p/ Próxima'],
-      proxMntKm: r['Próx.MNT(km)'],
-      totalItens: r['Total Itens'],
-      atrasados: r.Atrasados,
-      urgentes: r.Urgentes,
-      proximos: r.Próximos,
-      ok: r.OK,
-      totalDeveria: r['Total Deveria'],
-      totalReal: r['Total Realizado'],
-      totalPend: r['Total Pendente'],
-      status: r['Status Geral'],
-      vencimento: r.Vencimento || r['Unnamed: 22'] || ''
-    }));
-    return { success: true, items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    const cadastro  = readCadastro(ss);
+    const plano     = readPlano(ss);
+    const historico = readHistorico(ss);
+    const computed  = buildComputedViews(cadastro, plano, historico);
+    const acompSh   = readAcompSheet(ss);
+    const resumoSh  = readResumoSheet(ss);
+    const acompBase = acompSh.length ? acompSh : computed.acomp;
+    const resumoBase = resumoSh.length ? resumoSh : computed.resumo;
+
+    const itens   = acompBase.filter(r => r.Placa === placa);
+    const resumo  = resumoBase.find(r => r.Placa === placa) || {};
+    const hist    = historico
+      .filter(r => r.Placa === placa)
+      .sort((a, b) => parseDate(b['Data Manutenção']) - parseDate(a['Data Manutenção']))
+      .slice(0, 50);
+
+    return { success: true, placa, resumo, itens, historico: hist };
   } catch (e) {
     return { success: false, error: e.message };
   }
@@ -680,7 +672,7 @@ function getResumoTable(filters, page, pageSize) {
 function getSemPlanoFull() {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    return { success: true, items: loadBaseTables(ss).semPlano };
+    return { success: true, items: readSemPlano(ss) };
   } catch (e) {
     return { success: false, error: e.message };
   }
@@ -691,7 +683,8 @@ function getSemPlanoFull() {
 // ============================================================
 function toNum(v) {
   if (v === null || v === undefined || v === '') return 0;
-  if (typeof v === 'number') return v;
+  if (typeof v === 'number') return isNaN(v) ? 0 : v;
+  if (typeof v === 'string' && v.startsWith('=')) return 0; // fórmula não calculada
   const clean = String(v).replace(/\./g, '').replace(',', '.').replace(/[^0-9.-]/g, '');
   const n = Number(clean);
   return isNaN(n) ? 0 : n;
@@ -699,53 +692,27 @@ function toNum(v) {
 
 function toDateStr(v) {
   if (!v) return '';
-  if (v instanceof Date) return Utilities.formatDate(v, 'America/Manaus', 'dd/MM/yyyy');
+  if (v instanceof Date) {
+    if (isNaN(v.getTime())) return '';
+    return Utilities.formatDate(v, 'America/Manaus', 'dd/MM/yyyy');
+  }
+  if (typeof v === 'string' && v.startsWith('=')) return ''; // fórmula
   const d = parseDate(v);
-  if (!isNaN(d)) return Utilities.formatDate(d, 'America/Manaus', 'dd/MM/yyyy');
+  if (d && !isNaN(d.getTime())) return Utilities.formatDate(d, 'America/Manaus', 'dd/MM/yyyy');
   return String(v);
 }
 
 function parseDate(v) {
-  if (!v) return new Date('');
-  if (v instanceof Date) return v;
+  if (!v) return null;
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
   const s = String(v).trim();
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
-  return new Date(s);
-}
-
-function groupBy(arr, key) {
-  const result = {};
-  arr.forEach(r => {
-    const k = r[key] || 'Sem Categoria';
-    result[k] = (result[k] || 0) + 1;
-  });
-  return result;
-}
-
-function looksLikeHeader(headers) {
-  const known = {
-    placa: true, modelo: true, item: true, itemmnt: true, centrodecusto: true, status: true, statusgeral: true,
-    km: true, kmatual: true, kmmanutencao: true, datamanutencao: true, data: true, tipo: true, tipoveiculo: true,
-    intervalokm: true, intervalomeses: true, vencimento: true, totalitens: true
-  };
-  return headers.some(h => known[normKey(h)] || normKey(h).indexOf('placa') >= 0 || normKey(h).indexOf('status') >= 0);
-}
-
-function normKey(k) {
-  return String(k || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
-}
-
-function firstVal(obj, keys) {
-  for (let i = 0; i < keys.length; i++) {
-    const k = keys[i];
-    const nk = normKey(k);
-    if (obj[k] !== undefined && obj[k] !== '') return obj[k];
-    if (obj[nk] !== undefined && obj[nk] !== '') return obj[nk];
-  }
-  return '';
+  if (s.startsWith('=')) return null;
+  // dd/MM/yyyy
+  const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m1) return new Date(Number(m1[3]), Number(m1[2]) - 1, Number(m1[1]));
+  // yyyy-MM-dd
+  const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m2) return new Date(Number(m2[1]), Number(m2[2]) - 1, Number(m2[3]));
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
 }
