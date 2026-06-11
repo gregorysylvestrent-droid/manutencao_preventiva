@@ -1302,7 +1302,7 @@
     </div>
     <div class="header-right">
       <span class="header-ts" id="last-update">—</span>
-      <button class="refresh-btn" id="refresh-btn" onclick="loadData()">
+      <button class="refresh-btn" id="refresh-btn" onclick="loadData()" title="Recarrega a tela usando a base cacheada">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
           stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 2v6h-6" />
@@ -1310,7 +1310,21 @@
           <path d="M3 22v-6h6" />
           <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
         </svg>
-        Atualizar
+        Atualizar tela
+      </button>
+      <button class="refresh-btn" id="rebuild-cache-btn" onclick="rebuildDashboardCache()" title="Reprocessa as bases brutas e recria o cache">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2v4" />
+          <path d="M12 18v4" />
+          <path d="m4.93 4.93 2.83 2.83" />
+          <path d="m16.24 16.24 2.83 2.83" />
+          <path d="M2 12h4" />
+          <path d="M18 12h4" />
+          <path d="m4.93 19.07 2.83-2.83" />
+          <path d="m16.24 7.76 2.83-2.83" />
+        </svg>
+        Reprocessar base
       </button>
       <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Alternar tema">🌙</button>
     </div>
@@ -1801,7 +1815,9 @@
       setRefreshLoading(false);
       if (!d.success) { showToast('Erro: ' + d.error, 'error'); return; }
       DATA = d;
-      document.getElementById('last-update').textContent = 'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
+      const cacheInfo = d.cacheInfo || {};
+      const cacheTime = cacheInfo.refreshedAt ? new Date(cacheInfo.refreshedAt).toLocaleString('pt-BR') : new Date().toLocaleTimeString('pt-BR');
+      document.getElementById('last-update').textContent = (cacheInfo.fromCache ? 'Cache: ' : 'Atualizado: ') + cacheTime;
       populateFilters(d.filterOptions);
       renderOverview(d);
       // Fechar loading
@@ -1812,8 +1828,23 @@
 
     function onError(e) {
       setRefreshLoading(false);
+      setRebuildLoading(false);
       showToast('Falha ao carregar dados', 'error');
       document.getElementById('loading-screen').classList.add('hide');
+    }
+
+    function rebuildDashboardCache() {
+      setRebuildLoading(true);
+      showToast('Reprocessando base. Isso pode levar alguns minutos…');
+      google.script.run
+        .withSuccessHandler(d => {
+          setRebuildLoading(false);
+          if (!d.success) { showToast('Erro ao reprocessar: ' + d.error, 'error'); return; }
+          showToast('Base reprocessada com sucesso');
+          loadData();
+        })
+        .withFailureHandler(onError)
+        .atualizarBaseDashboard();
     }
 
     // ============================================================
@@ -2538,6 +2569,13 @@
     // ============================================================
     function setRefreshLoading(on) {
       const btn = document.getElementById('refresh-btn');
+      if (!btn) return;
+      btn.classList.toggle('loading', on);
+      btn.disabled = on;
+    }
+
+    function setRebuildLoading(on) {
+      const btn = document.getElementById('rebuild-cache-btn');
       if (!btn) return;
       btn.classList.toggle('loading', on);
       btn.disabled = on;
