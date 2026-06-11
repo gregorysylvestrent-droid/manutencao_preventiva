@@ -1,0 +1,2553 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MNTPREV — Dashboard NorteTech</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <style>
+    /* ============================================================
+   DESIGN SYSTEM — MNTPREV DASHBOARD — NorteTech Energia
+   Identidade: Azul industrial + Laranja energia + Dark slate
+   Modo escuro / claro com toggle
+============================================================ */
+    :root {
+      --nt-navy: #0a1628;
+      --nt-navy-mid: #112040;
+      --nt-navy-card: #162a50;
+      --nt-blue: #1a56db;
+      --nt-blue-l: #3b82f6;
+      --nt-orange: #E4C62A;
+      --nt-orange-d: #ea580c;
+      --nt-teal: #14b8a6;
+      --nt-green: #22c55e;
+      --nt-red: #ef4444;
+      --nt-yellow: #eab308;
+      --nt-white: #f0f6ff;
+      --nt-muted: #8da5c6;
+      --nt-border: rgba(59, 130, 246, 0.18);
+      --nt-glow: rgba(26, 86, 219, 0.25);
+      --nt-radius: 10px;
+      --nt-radius-lg: 16px;
+      --font-main: 'Sora', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --status-ok: #22c55e;
+      --status-atras: #ef4444;
+      --status-urg: #f97316;
+      --status-prox: #eab308;
+      --status-sem: #6b7280;
+    }
+
+    body.light {
+      --nt-navy: #f4f7fb;
+      --nt-navy-mid: #ffffff;
+      --nt-navy-card: #ffffff;
+      --nt-blue: #1a56db;
+      --nt-blue-l: #2563eb;
+      --nt-orange: #b89600;
+      --nt-orange-d: #c2410c;
+      --nt-teal: #0f766e;
+      --nt-green: #15803d;
+      --nt-red: #dc2626;
+      --nt-yellow: #ca8a04;
+      --nt-white: #102033;
+      --nt-muted: #5f7089;
+      --nt-border: rgba(26, 86, 219, 0.16);
+      --nt-glow: rgba(26, 86, 219, 0.12);
+      --status-ok: #15803d;
+      --status-atras: #dc2626;
+      --status-urg: #c2410c;
+      --status-prox: #ca8a04;
+      --status-sem: #6b7280;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-main);
+      background: var(--nt-navy);
+      color: var(--nt-white);
+      min-height: 100vh;
+      overflow-x: hidden;
+      transition: background .3s, color .3s;
+    }
+
+    /* ---- LOADING ---- */
+    #loading-screen {
+      position: fixed;
+      inset: 0;
+      background: var(--nt-navy);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity .6s;
+    }
+
+    #loading-screen.hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loader-logo {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -.02em;
+      color: var(--nt-white);
+      margin-bottom: 8px;
+    }
+
+    .loader-logo span {
+      color: var(--nt-orange);
+    }
+
+    .loader-sub {
+      color: var(--nt-muted);
+      font-size: .85rem;
+      margin-bottom: 32px;
+    }
+
+    .loader-track {
+      width: 220px;
+      height: 3px;
+      background: rgba(255, 255, 255, .1);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .loader-fill {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--nt-blue), var(--nt-orange));
+      border-radius: 99px;
+      animation: loadFill 2s ease-in-out forwards;
+    }
+
+    @keyframes loadFill {
+      to {
+        width: 100%;
+      }
+    }
+
+    /* ---- HEADER ---- */
+    header {
+      background: var(--nt-navy-mid);
+      border-bottom: 1px solid var(--nt-border);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--nt-blue), var(--nt-orange));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: .9rem;
+      color: #fff;
+      letter-spacing: -1px;
+    }
+
+    .brand-name {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .brand-name span {
+      color: var(--nt-orange);
+    }
+
+    .brand-tag {
+      font-size: .65rem;
+      color: var(--nt-muted);
+      margin-top: 1px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-ts {
+      font-size: .7rem;
+      font-family: var(--font-mono);
+      color: var(--nt-muted);
+    }
+
+    /* THEME TOGGLE */
+    .theme-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--nt-border);
+      background: transparent;
+      color: var(--nt-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      transition: all .2s;
+    }
+
+    .theme-btn:hover {
+      background: var(--nt-navy-card);
+      color: var(--nt-white);
+    }
+
+    /* REFRESH BTN */
+    .refresh-btn {
+      height: 34px;
+      padding: 0 14px;
+      border-radius: 8px;
+      border: 1px solid var(--nt-border);
+      background: transparent;
+      color: var(--nt-muted);
+      cursor: pointer;
+      font-family: var(--font-main);
+      font-size: .75rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all .2s;
+    }
+
+    .refresh-btn:hover {
+      background: var(--nt-blue);
+      color: #fff;
+      border-color: var(--nt-blue);
+    }
+
+    .refresh-btn.loading svg {
+      animation: spin .8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ---- LAYOUT ---- */
+    .app {
+      display: flex;
+      min-height: calc(100vh - 60px);
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 220px;
+      min-width: 220px;
+      background: var(--nt-navy-mid);
+      border-right: 1px solid var(--nt-border);
+      padding: 16px 0;
+      position: sticky;
+      top: 60px;
+      height: calc(100vh - 60px);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-section {
+      padding: 0 12px;
+      margin-bottom: 4px;
+    }
+
+    .sidebar-label {
+      font-size: .6rem;
+      font-weight: 700;
+      color: var(--nt-muted);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 8px 8px 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: .8rem;
+      font-weight: 500;
+      color: var(--nt-muted);
+      transition: all .15s;
+      margin-bottom: 1px;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-item:hover {
+      background: rgba(59, 130, 246, .12);
+      color: var(--nt-white);
+    }
+
+    .nav-item.active {
+      background: rgba(26, 86, 219, .2);
+      color: var(--nt-blue-l);
+    }
+
+    .nav-item svg {
+      flex-shrink: 0;
+    }
+
+    .sidebar-divider {
+      height: 1px;
+      background: var(--nt-border);
+      margin: 8px 12px;
+    }
+
+    /* ---- FILTROS ---- */
+    .filters-bar {
+      background: var(--nt-navy-mid);
+      border-bottom: 1px solid var(--nt-border);
+      padding: 10px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 160px;
+      flex: 1;
+      max-width: 280px;
+    }
+
+    .filter-label {
+      font-size: .65rem;
+      font-weight: 600;
+      color: var(--nt-muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .multiselect-wrap {
+      position: relative;
+    }
+
+    .multiselect-trigger {
+      background: var(--nt-navy-card);
+      border: 1px solid var(--nt-border);
+      border-radius: 8px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: .75rem;
+      color: var(--nt-white);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      min-height: 32px;
+      transition: border-color .15s;
+      user-select: none;
+    }
+
+    .multiselect-trigger:hover {
+      border-color: var(--nt-blue-l);
+    }
+
+    .multiselect-trigger.open {
+      border-color: var(--nt-blue);
+    }
+
+    .multiselect-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      flex: 1;
+    }
+
+    .ms-tag {
+      background: rgba(26, 86, 219, .25);
+      color: var(--nt-blue-l);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: .65rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .ms-tag-rm {
+      cursor: pointer;
+      opacity: .7;
+    }
+
+    .ms-tag-rm:hover {
+      opacity: 1;
+    }
+
+    .ms-placeholder {
+      color: var(--nt-muted);
+      font-size: .75rem;
+    }
+
+    .multiselect-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      z-index: 500;
+      background: var(--nt-navy-mid);
+      border: 1px solid var(--nt-border);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
+      max-height: 220px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .multiselect-dropdown.open {
+      display: block;
+    }
+
+    .ms-search {
+      padding: 8px;
+      border-bottom: 1px solid var(--nt-border);
+    }
+
+    .ms-search input {
+      width: 100%;
+      background: var(--nt-navy-card);
+      border: 1px solid var(--nt-border);
+      border-radius: 6px;
+      padding: 5px 8px;
+      color: var(--nt-white);
+      font-size: .75rem;
+      outline: none;
+      font-family: var(--font-main);
+    }
+
+    .ms-search input::placeholder {
+      color: var(--nt-muted);
+    }
+
+    .ms-option {
+      padding: 7px 12px;
+      cursor: pointer;
+      font-size: .78rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background .1s;
+    }
+
+    .ms-option:hover {
+      background: rgba(59, 130, 246, .12);
+    }
+
+    .ms-option.selected {
+      color: var(--nt-blue-l);
+    }
+
+    .ms-check {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1.5px solid var(--nt-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all .1s;
+    }
+
+    .ms-option.selected .ms-check {
+      background: var(--nt-blue);
+      border-color: var(--nt-blue);
+    }
+
+    .ms-option.selected .ms-check::after {
+      content: '✓';
+      font-size: .6rem;
+      color: #fff;
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: 6px;
+      align-items: flex-end;
+    }
+
+    .btn-apply,
+    .btn-clear {
+      height: 32px;
+      padding: 0 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: var(--font-main);
+      font-size: .75rem;
+      font-weight: 600;
+      border: none;
+      transition: all .15s;
+    }
+
+    .btn-apply {
+      background: var(--nt-blue);
+      color: #fff;
+    }
+
+    .btn-apply:hover {
+      background: var(--nt-blue-l);
+    }
+
+    .btn-clear {
+      background: transparent;
+      color: var(--nt-muted);
+      border: 1px solid var(--nt-border);
+    }
+
+    .btn-clear:hover {
+      color: var(--nt-white);
+      border-color: var(--nt-muted);
+    }
+
+    /* ---- CONTEÚDO PRINCIPAL ---- */
+    .main-content {
+      flex: 1;
+      overflow-x: hidden;
+    }
+
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    .page-inner {
+      padding: 20px;
+    }
+
+    /* SECTION TITLE */
+    .section-title {
+      font-size: .7rem;
+      font-weight: 700;
+      color: var(--nt-muted);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--nt-border);
+    }
+
+    /* ---- KPI CARDS ---- */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      background: var(--nt-navy-card);
+      border: 1px solid var(--nt-border);
+      border-radius: var(--nt-radius-lg);
+      padding: 16px;
+      transition: transform .15s, box-shadow .15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+    }
+
+    .kpi-card.blue::before {
+      background: var(--nt-blue);
+    }
+
+    .kpi-card.green::before {
+      background: var(--nt-green);
+    }
+
+    .kpi-card.red::before {
+      background: var(--nt-red);
+    }
+
+    .kpi-card.orange::before {
+      background: var(--nt-orange-d);
+    }
+
+    .kpi-card.yellow::before {
+      background: var(--nt-yellow);
+    }
+
+    .kpi-card.teal::before {
+      background: var(--nt-teal);
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px var(--nt-glow);
+    }
+
+    .kpi-label {
+      font-size: .68rem;
+      font-weight: 600;
+      color: var(--nt-muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 6px;
+    }
+
+    .kpi-value {
+      font-size: 1.9rem;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .kpi-card.blue .kpi-value {
+      color: var(--nt-blue-l);
+    }
+
+    .kpi-card.green .kpi-value {
+      color: var(--nt-green);
+    }
+
+    .kpi-card.red .kpi-value {
+      color: var(--nt-red);
+    }
+
+    .kpi-card.orange .kpi-value {
+      color: var(--nt-orange-d);
+    }
+
+    .kpi-card.yellow .kpi-value {
+      color: var(--nt-yellow);
+    }
+
+    .kpi-card.teal .kpi-value {
+      color: var(--nt-teal);
+    }
+
+    .kpi-sub {
+      font-size: .7rem;
+      color: var(--nt-muted);
+    }
+
+    .kpi-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      font-size: .65rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      padding: 2px 6px;
+      border-radius: 99px;
+    }
+
+    .kpi-card.green .kpi-badge {
+      background: rgba(34, 197, 94, .15);
+      color: var(--nt-green);
+    }
+
+    .kpi-card.red .kpi-badge {
+      background: rgba(239, 68, 68, .15);
+      color: var(--nt-red);
+    }
+
+    /* ---- CHARTS GRID ---- */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .charts-grid.three {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .chart-card {
+      background: var(--nt-navy-card);
+      border: 1px solid var(--nt-border);
+      border-radius: var(--nt-radius-lg);
+      padding: 16px;
+    }
+
+    .chart-card.wide {
+      grid-column: 1 / -1;
+    }
+
+    .chart-title {
+      font-size: .75rem;
+      font-weight: 700;
+      color: var(--nt-white);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Status donut (SVG) */
+    .donut-wrap {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .donut-svg {
+      flex-shrink: 0;
+    }
+
+    .donut-legend {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: .75rem;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .legend-val {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      margin-left: auto;
+    }
+
+    /* Bar chart */
+    .bar-chart {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .bar-label {
+      font-size: .72rem;
+      color: var(--nt-muted);
+      width: 140px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex-shrink: 0;
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 8px;
+      background: rgba(255, 255, 255, .07);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width .6s ease;
+    }
+
+    .bar-num {
+      font-size: .7rem;
+      font-family: var(--font-mono);
+      color: var(--nt-muted);
+      width: 32px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* Line chart (SVG) */
+    .line-chart-wrap {
+      width: 100%;
+      overflow: hidden;
+    }
+
+    /* ---- TABELAS ---- */
+    .table-card {
+      background: var(--nt-navy-card);
+      border: 1px solid var(--nt-border);
+      border-radius: var(--nt-radius-lg);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    .table-header {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--nt-border);
+    }
+
+    .table-title {
+      font-size: .8rem;
+      font-weight: 700;
+      color: var(--nt-white);
+    }
+
+    .table-count {
+      font-size: .7rem;
+      font-family: var(--font-mono);
+      color: var(--nt-muted);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .75rem;
+    }
+
+    thead th {
+      padding: 10px 12px;
+      text-align: left;
+      font-size: .65rem;
+      font-weight: 700;
+      color: var(--nt-muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      background: rgba(59, 130, 246, .06);
+      white-space: nowrap;
+      border-bottom: 1px solid var(--nt-border);
+    }
+
+    tbody tr {
+      border-bottom: 1px solid rgba(59, 130, 246, .08);
+      transition: background .1s;
+    }
+
+    tbody tr:hover {
+      background: rgba(59, 130, 246, .07);
+      cursor: pointer;
+    }
+
+    tbody td {
+      padding: 9px 12px;
+      color: var(--nt-white);
+      white-space: nowrap;
+    }
+
+    .td-muted {
+      color: var(--nt-muted);
+    }
+
+    /* STATUS BADGE */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 99px;
+      font-size: .65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      white-space: nowrap;
+    }
+
+    .badge-ok {
+      background: rgba(34, 197, 94, .15);
+      color: var(--status-ok);
+    }
+
+    .badge-atras {
+      background: rgba(239, 68, 68, .15);
+      color: var(--status-atras);
+    }
+
+    .badge-urg {
+      background: rgba(249, 115, 22, .15);
+      color: var(--status-urg);
+    }
+
+    .badge-prox {
+      background: rgba(234, 179, 8, .15);
+      color: var(--status-prox);
+    }
+
+    .badge-sem {
+      background: rgba(107, 114, 128, .15);
+      color: var(--status-sem);
+    }
+
+    /* KM bar mini */
+    .km-mini {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .km-track {
+      width: 60px;
+      height: 5px;
+      background: rgba(255, 255, 255, .1);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .km-fill {
+      height: 100%;
+      border-radius: 99px;
+    }
+
+    .km-val {
+      font-size: .7rem;
+      font-family: var(--font-mono);
+      color: var(--nt-muted);
+    }
+
+    /* ---- PAGINAÇÃO ---- */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 12px;
+      border-top: 1px solid var(--nt-border);
+    }
+
+    .pg-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      border: 1px solid var(--nt-border);
+      background: transparent;
+      color: var(--nt-muted);
+      cursor: pointer;
+      font-size: .75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .1s;
+    }
+
+    .pg-btn:hover:not(:disabled) {
+      background: var(--nt-blue);
+      color: #fff;
+      border-color: var(--nt-blue);
+    }
+
+    .pg-btn.active {
+      background: var(--nt-blue);
+      color: #fff;
+      border-color: var(--nt-blue);
+    }
+
+    .pg-btn:disabled {
+      opacity: .3;
+      cursor: default;
+    }
+
+    .pg-info {
+      font-size: .72rem;
+      font-family: var(--font-mono);
+      color: var(--nt-muted);
+      padding: 0 8px;
+    }
+
+    /* ---- MODAL DETALHE ---- */
+    #detail-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: none;
+      background: rgba(0, 0, 0, .6);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+    }
+
+    #detail-modal.open {
+      display: flex;
+    }
+
+    .modal-box {
+      background: var(--nt-navy-mid);
+      border: 1px solid var(--nt-border);
+      border-radius: var(--nt-radius-lg);
+      width: min(900px, 95vw);
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, .6);
+      animation: slideUp .25s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+      }
+    }
+
+    .modal-head {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--nt-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: var(--nt-navy-mid);
+      z-index: 1;
+    }
+
+    .modal-title {
+      font-size: .95rem;
+      font-weight: 700;
+    }
+
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid var(--nt-border);
+      background: transparent;
+      color: var(--nt-muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-close:hover {
+      color: var(--nt-white);
+      background: rgba(255, 255, 255, .1);
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .modal-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .modal-kpi {
+      background: var(--nt-navy-card);
+      border: 1px solid var(--nt-border);
+      border-radius: var(--nt-radius);
+      padding: 12px;
+    }
+
+    .modal-kpi-label {
+      font-size: .65rem;
+      color: var(--nt-muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .modal-kpi-val {
+      font-size: 1.3rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+
+    /* ---- TOAST ---- */
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 9000;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .toast-item {
+      background: var(--nt-navy-mid);
+      border: 1px solid var(--nt-border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: .78rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: toastIn .3s ease;
+      max-width: 320px;
+    }
+
+    @keyframes toastIn {
+      from {
+        transform: translateX(20px);
+        opacity: 0;
+      }
+    }
+
+    /* ---- UTILIDADES ---- */
+    .flex-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mt-4 {
+      margin-top: 16px;
+    }
+
+    .text-mono {
+      font-family: var(--font-mono);
+    }
+
+    /* RESPONSIVE */
+    @media(max-width:900px) {
+      .sidebar {
+        display: none;
+      }
+
+      .charts-grid,
+      .charts-grid.three {
+        grid-template-columns: 1fr;
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .modal-kpis {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media(max-width:600px) {
+      .kpi-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .filters-bar {
+        padding: 8px 12px;
+      }
+
+      .filter-group {
+        max-width: 100%;
+      }
+    }
+
+    /* EMPTY STATE */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--nt-muted);
+    }
+
+    .empty-state svg {
+      margin-bottom: 12px;
+      opacity: .4;
+    }
+
+    .empty-state p {
+      font-size: .85rem;
+    }
+
+    /* VENCIMENTO HEATMAP */
+    .venc-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .venc-chip {
+      padding: 5px 12px;
+      border-radius: 99px;
+      font-size: .72rem;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      transition: transform .1s;
+    }
+
+    .venc-chip:hover {
+      transform: scale(1.05);
+    }
+
+    .venc-chip.venc-old {
+      background: rgba(239, 68, 68, .2);
+      color: var(--nt-red);
+    }
+
+    .venc-chip.venc-jan {
+      background: rgba(249, 115, 22, .15);
+      color: var(--nt-orange-d);
+    }
+
+    .venc-chip.venc-feb {
+      background: rgba(249, 115, 22, .1);
+      color: var(--nt-orange-d);
+    }
+
+    .venc-chip.venc-mar {
+      background: rgba(234, 179, 8, .1);
+      color: var(--nt-yellow);
+    }
+
+    .venc-chip.venc-abr {
+      background: rgba(234, 179, 8, .12);
+      color: var(--nt-yellow);
+    }
+
+    .venc-chip.venc-mai {
+      background: rgba(20, 184, 166, .12);
+      color: var(--nt-teal);
+    }
+
+    .venc-chip.venc-ok {
+      background: rgba(34, 197, 94, .1);
+      color: var(--nt-green);
+    }
+
+    /* SCROLL */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(59, 130, 246, .3);
+      border-radius: 99px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- LOADING -->
+  <div id="loading-screen">
+    <div class="loader-logo">Norte<span>Tech</span></div>
+    <div class="loader-sub">Manutenção Preventiva — Carregando dashboard…</div>
+    <div class="loader-track">
+      <div class="loader-fill"></div>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">NT</div>
+      <div>
+        <div class="brand-name">Norte<span>Tech</span> <span style="color:var(--nt-muted);font-weight:400">|</span>
+          MNTPREV</div>
+        <div class="brand-tag">Dashboard de Manutenção Preventiva</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="header-ts" id="last-update">—</span>
+      <button class="refresh-btn" id="refresh-btn" onclick="loadData()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 2v6h-6" />
+          <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+          <path d="M3 22v-6h6" />
+          <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+        </svg>
+        Atualizar
+      </button>
+      <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Alternar tema">🌙</button>
+    </div>
+  </header>
+
+  <!-- APP CONTAINER -->
+  <div class="app">
+
+    <!-- SIDEBAR NAV -->
+    <nav class="sidebar">
+      <div class="sidebar-label" style="padding:8px 12px 4px;">Navegação</div>
+      <div class="sidebar-section">
+        <button class="nav-item active" data-page="overview" onclick="showPage('overview',this)">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+          </svg>
+          Visão Geral
+        </button>
+        <button class="nav-item" data-page="resumo" onclick="showPage('resumo',this)">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 6v6l4 2" />
+          </svg>
+          Resumo por Veículo
+        </button>
+        <button class="nav-item" data-page="acompanhamento" onclick="showPage('acompanhamento',this)">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M9 11l3 3 8-8" />
+            <path d="M21 12c0 5-4 9-9 9S3 17 3 12 7 3 12 3a9 9 0 0 1 5 1.5" />
+          </svg>
+          Acomp. por Item
+        </button>
+        <button class="nav-item" data-page="historico" onclick="showPage('historico',this)">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M3 3v18h18" />
+            <path d="M7 16l4-4 4 4 6-6" />
+          </svg>
+          Histórico
+        </button>
+        <button class="nav-item" data-page="semplano" onclick="showPage('semplano',this)">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          Sem Plano
+        </button>
+      </div>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-label" style="padding:8px 12px 4px;">Vencimentos</div>
+      <div class="sidebar-section">
+        <button class="nav-item" data-page="vencimentos" onclick="showPage('vencimentos',this)">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          Meses de Vencimento
+        </button>
+      </div>
+    </nav>
+
+    <!-- MAIN -->
+    <div class="main-content">
+
+      <!-- FILTROS -->
+      <div class="filters-bar" id="filters-bar">
+        <div class="filter-group">
+          <div class="filter-label">Placa</div>
+          <div class="multiselect-wrap" id="ms-placas">
+            <div class="multiselect-trigger" onclick="toggleMs('ms-placas')">
+              <div class="multiselect-tags" id="tags-placas"><span class="ms-placeholder">Todas as placas</span></div>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </div>
+            <div class="multiselect-dropdown" id="dd-placas">
+              <div class="ms-search"><input type="text" placeholder="Buscar placa…"
+                  oninput="filterMsOptions('ms-placas',this.value)" /></div>
+              <div class="ms-options" id="opts-placas"></div>
+            </div>
+          </div>
+        </div>
+        <div class="filter-group">
+          <div class="filter-label">Centro de Custo</div>
+          <div class="multiselect-wrap" id="ms-cc">
+            <div class="multiselect-trigger" onclick="toggleMs('ms-cc')">
+              <div class="multiselect-tags" id="tags-cc"><span class="ms-placeholder">Todos os centros</span></div>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </div>
+            <div class="multiselect-dropdown" id="dd-cc">
+              <div class="ms-search"><input type="text" placeholder="Buscar centro…"
+                  oninput="filterMsOptions('ms-cc',this.value)" /></div>
+              <div class="ms-options" id="opts-cc"></div>
+            </div>
+          </div>
+        </div>
+        <div class="filter-group">
+          <div class="filter-label">Modelo</div>
+          <div class="multiselect-wrap" id="ms-modelos">
+            <div class="multiselect-trigger" onclick="toggleMs('ms-modelos')">
+              <div class="multiselect-tags" id="tags-modelos"><span class="ms-placeholder">Todos os modelos</span></div>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </div>
+            <div class="multiselect-dropdown" id="dd-modelos">
+              <div class="ms-search"><input type="text" placeholder="Buscar modelo…"
+                  oninput="filterMsOptions('ms-modelos',this.value)" /></div>
+              <div class="ms-options" id="opts-modelos"></div>
+            </div>
+          </div>
+        </div>
+        <div class="filter-group" style="max-width:160px;">
+          <div class="filter-label">Status</div>
+          <div class="multiselect-wrap" id="ms-status">
+            <div class="multiselect-trigger" onclick="toggleMs('ms-status')">
+              <div class="multiselect-tags" id="tags-status"><span class="ms-placeholder">Todos os status</span></div>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </div>
+            <div class="multiselect-dropdown" id="dd-status">
+              <div class="ms-options" id="opts-status"></div>
+            </div>
+          </div>
+        </div>
+        <div class="filter-actions">
+          <button class="btn-apply" onclick="applyFilters()">Filtrar</button>
+          <button class="btn-clear" onclick="clearFilters()">Limpar</button>
+        </div>
+      </div>
+
+      <!-- ======= PAGE: VISÃO GERAL ======= -->
+      <div class="page active" id="page-overview">
+        <div class="page-inner">
+          <div class="section-title">KPIs Principais</div>
+          <div class="kpi-grid" id="kpi-grid">
+            <div class="kpi-card blue">
+              <div class="kpi-label">Total Veículos</div>
+              <div class="kpi-value" id="k-total">—</div>
+              <div class="kpi-sub">monitorados</div>
+            </div>
+            <div class="kpi-card green">
+              <div class="kpi-label">Em Dia (OK)</div>
+              <div class="kpi-value" id="k-ok">—</div>
+              <div class="kpi-badge" id="k-ok-pct">—</div>
+              <div class="kpi-sub">veículos</div>
+            </div>
+            <div class="kpi-card red">
+              <div class="kpi-label">Atrasados</div>
+              <div class="kpi-value" id="k-atras">—</div>
+              <div class="kpi-badge" id="k-atras-pct">—</div>
+              <div class="kpi-sub">veículos</div>
+            </div>
+            <div class="kpi-card orange">
+              <div class="kpi-label">Urgentes</div>
+              <div class="kpi-value" id="k-urg">—</div>
+              <div class="kpi-sub">ação imediata</div>
+            </div>
+            <div class="kpi-card yellow">
+              <div class="kpi-label">Próximos</div>
+              <div class="kpi-value" id="k-prox">—</div>
+              <div class="kpi-sub">vencer em breve</div>
+            </div>
+            <div class="kpi-card teal">
+              <div class="kpi-label">Aderência</div>
+              <div class="kpi-value" id="k-ader">—</div>
+              <div class="kpi-sub">realizadas / deveriam</div>
+            </div>
+            <div class="kpi-card blue">
+              <div class="kpi-label">Total Itens</div>
+              <div class="kpi-value" id="k-itens">—</div>
+              <div class="kpi-sub">itens monitorados</div>
+            </div>
+            <div class="kpi-card red">
+              <div class="kpi-label">Pendentes</div>
+              <div class="kpi-value" id="k-pend">—</div>
+              <div class="kpi-sub">execuções em atraso</div>
+            </div>
+          </div>
+
+          <div class="charts-grid">
+            <!-- Donut status -->
+            <div class="chart-card">
+              <div class="chart-title">Distribuição por Status</div>
+              <div class="donut-wrap">
+                <svg class="donut-svg" width="120" height="120" viewBox="0 0 120 120" id="donut-svg">
+                  <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="18" />
+                </svg>
+                <div class="donut-legend" id="donut-legend"></div>
+              </div>
+            </div>
+
+            <!-- Tipos de veículo -->
+            <div class="chart-card">
+              <div class="chart-title">Por Tipo de Veículo</div>
+              <div class="bar-chart" id="tipos-chart"></div>
+            </div>
+
+            <!-- Histórico mensal -->
+            <div class="chart-card wide">
+              <div class="chart-title">
+                Histórico de Manutenções — Últimos 12 meses
+                <span style="font-size:.68rem;font-weight:400;color:var(--nt-muted);">preventivas vs corretivas</span>
+              </div>
+              <div class="line-chart-wrap" id="hist-chart"></div>
+            </div>
+          </div>
+
+          <div class="section-title">Top Veículos Críticos</div>
+          <div class="table-card">
+            <div class="table-header">
+              <span class="table-title">Veículos com mais itens atrasados / urgentes</span>
+              <span class="table-count" id="criticos-count">—</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Placa</th>
+                    <th>Modelo</th>
+                    <th>Tipo</th>
+                    <th>Centro de Custo</th>
+                    <th>KM Atual</th>
+                    <th>Item Crítico</th>
+                    <th>Atrasados</th>
+                    <th>Urgentes</th>
+                    <th>OK</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="criticos-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="section-title">Top Itens com Mais Atrasos</div>
+          <div class="chart-card">
+            <div class="bar-chart" id="itens-chart"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======= PAGE: RESUMO POR VEÍCULO ======= -->
+      <div class="page" id="page-resumo">
+        <div class="page-inner">
+          <div class="table-card">
+            <div class="table-header">
+              <span class="table-title">Resumo por Veículo</span>
+              <span class="table-count" id="resumo-count">—</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Placa</th>
+                    <th>Modelo</th>
+                    <th>Tipo</th>
+                    <th>Cidade</th>
+                    <th>Centro de Custo</th>
+                    <th>KM Atual</th>
+                    <th>KM p/ Próxima</th>
+                    <th>Últ. MNT</th>
+                    <th>Itens</th>
+                    <th>Atras.</th>
+                    <th>Urg.</th>
+                    <th>Próx.</th>
+                    <th>OK</th>
+                    <th>Deveria</th>
+                    <th>Realiz.</th>
+                    <th>Pend.</th>
+                    <th>Status</th>
+                    <th>Situação</th>
+                  </tr>
+                </thead>
+                <tbody id="resumo-tbody"></tbody>
+              </table>
+            </div>
+            <div class="pagination" id="resumo-pag"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======= PAGE: ACOMPANHAMENTO POR ITEM ======= -->
+      <div class="page" id="page-acompanhamento">
+        <div class="page-inner">
+          <div class="table-card">
+            <div class="table-header">
+              <span class="table-title">Acompanhamento por Item</span>
+              <span class="table-count" id="acomp-count">—</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Placa</th>
+                    <th>Modelo</th>
+                    <th>Tipo</th>
+                    <th>Centro de Custo</th>
+                    <th>Item MNT</th>
+                    <th>Intervalo</th>
+                    <th>KM Atual</th>
+                    <th>KM Últ. MNT</th>
+                    <th>Data Últ. MNT</th>
+                    <th>KM Desde</th>
+                    <th>Próx. MNT</th>
+                    <th>KM p/ Próx.</th>
+                    <th>Deveria</th>
+                    <th>Realiz.</th>
+                    <th>Pend.</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="acomp-tbody"></tbody>
+              </table>
+            </div>
+            <div class="pagination" id="acomp-pag"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======= PAGE: HISTÓRICO ======= -->
+      <div class="page" id="page-historico">
+        <div class="page-inner">
+          <div class="chart-card" style="margin-bottom:20px;">
+            <div class="chart-title">Manutenções por Mês — Histórico Completo</div>
+            <div class="line-chart-wrap" id="hist-chart-full"></div>
+          </div>
+          <div class="charts-grid">
+            <div class="chart-card">
+              <div class="chart-title">Preventivas vs Corretivas</div>
+              <div class="bar-chart" id="tipo-hist-chart"></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Top Itens Realizados</div>
+              <div class="bar-chart" id="itens-hist-chart"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======= PAGE: SEM PLANO ======= -->
+      <div class="page" id="page-semplano">
+        <div class="page-inner">
+          <div class="kpi-grid" style="margin-bottom:20px;" id="semplano-kpi-grid">
+            <div class="kpi-card red">
+              <div class="kpi-label">Sem Plano</div>
+              <div class="kpi-value" id="sp-total">—</div>
+              <div class="kpi-sub">veículos não monitorados</div>
+            </div>
+          </div>
+          <div class="charts-grid" style="margin-bottom:20px;">
+            <div class="chart-card">
+              <div class="chart-title">Por Tipo de Veículo</div>
+              <div class="bar-chart" id="sp-tipos-chart"></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Distribuição</div>
+              <div class="donut-wrap">
+                <svg class="donut-svg" width="120" height="120" viewBox="0 0 120 120" id="sp-donut"></svg>
+                <div class="donut-legend" id="sp-donut-legend"></div>
+              </div>
+            </div>
+          </div>
+          <div class="table-card">
+            <div class="table-header">
+              <span class="table-title">Veículos sem Plano de Manutenção</span>
+              <span class="table-count" id="sp-count">—</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Placa</th>
+                    <th>Modelo</th>
+                    <th>Tipo</th>
+                    <th>Cidade</th>
+                    <th>Centro de Custo</th>
+                    <th>KM Atual</th>
+                    <th>Ativo</th>
+                  </tr>
+                </thead>
+                <tbody id="sp-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======= PAGE: VENCIMENTOS ======= -->
+      <div class="page" id="page-vencimentos">
+        <div class="page-inner">
+          <div class="section-title">Meses de Vencimento por Veículo</div>
+          <div class="chart-card" style="margin-bottom:20px;">
+            <div class="chart-title">Distribuição por Período de Vencimento</div>
+            <div class="bar-chart" id="venc-bar-chart"></div>
+          </div>
+          <div class="chart-card" style="margin-bottom:20px;">
+            <div class="chart-title">Períodos</div>
+            <div class="venc-grid" id="venc-chips"></div>
+          </div>
+          <div class="table-card">
+            <div class="table-header">
+              <span class="table-title" id="venc-table-title">Todos os Vencimentos</span>
+              <span class="table-count" id="venc-count">—</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Placa</th>
+                    <th>Modelo</th>
+                    <th>Tipo</th>
+                    <th>Centro de Custo</th>
+                    <th>Status</th>
+                    <th>Situação de Vencimento</th>
+                    <th>Atrasados</th>
+                    <th>Urgentes</th>
+                  </tr>
+                </thead>
+                <tbody id="venc-tbody"></tbody>
+              </table>
+            </div>
+            <div class="pagination" id="venc-pag"></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /main-content -->
+  </div><!-- /app -->
+
+  <!-- MODAL DETALHE VEÍCULO -->
+  <div id="detail-modal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <span class="modal-title" id="modal-title">Detalhe do Veículo</span>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body">
+        <div class="empty-state">
+          <p>Carregando…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast"></div>
+
+  <script>
+    // ============================================================
+    // ESTADO GLOBAL
+    // ============================================================
+    let DATA = null;
+    let FILTERS = { placas: [], centrosCusto: [], modelos: [], tipos: [], status: [] };
+    let SELECTED = { 'ms-placas': [], 'ms-cc': [], 'ms-modelos': [], 'ms-status': [] };
+
+    let resumoPage = 1, acompPage = 1, vencPage = 1;
+    const PAGE_SIZE = 50;
+
+    // ============================================================
+    // INICIALIZAÇÃO
+    // ============================================================
+    window.onload = () => {
+      // Fechar dropdowns ao clicar fora
+      document.addEventListener('click', e => {
+        if (!e.target.closest('.multiselect-wrap')) closeAllMs();
+      });
+      loadData();
+    };
+
+    function loadData() {
+      setRefreshLoading(true);
+      google.script.run
+        .withSuccessHandler(onDataLoaded)
+        .withFailureHandler(onError)
+        .getDashboardData(buildFilterPayload());
+    }
+
+    function onDataLoaded(d) {
+      setRefreshLoading(false);
+      if (!d.success) { showToast('Erro: ' + d.error, 'error'); return; }
+      DATA = d;
+      document.getElementById('last-update').textContent = 'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
+      populateFilters(d.filterOptions);
+      renderOverview(d);
+      // Fechar loading
+      const ls = document.getElementById('loading-screen');
+      ls.classList.add('hide');
+      setTimeout(() => { ls.style.display = 'none'; }, 700);
+    }
+
+    function onError(e) {
+      setRefreshLoading(false);
+      showToast('Falha ao carregar dados', 'error');
+      document.getElementById('loading-screen').classList.add('hide');
+    }
+
+    // ============================================================
+    // FILTROS — MULTISELECT
+    // ============================================================
+    const MS_CONFIG = {
+      'ms-placas': { key: 'placas', optsId: 'opts-placas', tagsId: 'tags-placas', placeholder: 'Todas as placas' },
+      'ms-cc': { key: 'centrosCusto', optsId: 'opts-cc', tagsId: 'tags-cc', placeholder: 'Todos os centros' },
+      'ms-modelos': { key: 'modelos', optsId: 'opts-modelos', tagsId: 'tags-modelos', placeholder: 'Todos os modelos' },
+      'ms-status': { key: 'status', optsId: 'opts-status', tagsId: 'tags-status', placeholder: 'Todos os status' }
+    };
+
+    function populateFilters(opts) {
+      buildMsOptions('ms-placas', opts.placas || []);
+      buildMsOptions('ms-cc', opts.centrosCusto || []);
+      buildMsOptions('ms-modelos', opts.modelos || []);
+      buildMsOptions('ms-status', opts.status || []);
+    }
+
+    function buildMsOptions(msId, values) {
+      const cfg = MS_CONFIG[msId];
+      const el = document.getElementById(cfg.optsId);
+      el.innerHTML = values.map(v => `
+    <div class="ms-option" data-val="${esc(v)}" onclick="toggleMsOption('${msId}','${esc(v)}')">
+      <div class="ms-check"></div>${esc(v)}
+    </div>`).join('');
+    }
+
+    function toggleMs(msId) {
+      const dd = document.getElementById('dd-' + msId.replace('ms-', ''));
+      if (!dd) { // try direct ID
+        const el = document.querySelector('#' + msId + ' .multiselect-dropdown');
+        if (!el) return;
+        const wasOpen = el.classList.contains('open');
+        closeAllMs();
+        if (!wasOpen) { el.classList.add('open'); document.querySelector('#' + msId + ' .multiselect-trigger').classList.add('open'); }
+        return;
+      }
+      const wasOpen = dd.classList.contains('open');
+      closeAllMs();
+      if (!wasOpen) {
+        dd.classList.add('open');
+        const trigger = document.querySelector('#' + msId + ' .multiselect-trigger');
+        if (trigger) trigger.classList.add('open');
+      }
+    }
+
+    function closeAllMs() {
+      document.querySelectorAll('.multiselect-dropdown.open').forEach(el => el.classList.remove('open'));
+      document.querySelectorAll('.multiselect-trigger.open').forEach(el => el.classList.remove('open'));
+    }
+
+    function toggleMsOption(msId, val) {
+      const sel = SELECTED[msId] || (SELECTED[msId] = []);
+      const idx = sel.indexOf(val);
+      if (idx >= 0) sel.splice(idx, 1); else sel.push(val);
+      updateMsUI(msId);
+      event.stopPropagation();
+    }
+
+    function updateMsUI(msId) {
+      const cfg = MS_CONFIG[msId];
+      const sel = SELECTED[msId] || [];
+      // Tags
+      const tagsEl = document.getElementById(cfg.tagsId);
+      if (sel.length === 0) {
+        tagsEl.innerHTML = `<span class="ms-placeholder">${cfg.placeholder}</span>`;
+      } else {
+        tagsEl.innerHTML = sel.slice(0, 3).map(v => `
+      <span class="ms-tag">${esc(v)}<span class="ms-tag-rm" onclick="removeMsTag('${msId}','${esc(v)}');event.stopPropagation()">×</span></span>`).join('') +
+          (sel.length > 3 ? `<span class="ms-tag">+${sel.length - 3}</span>` : '');
+      }
+      // Checkmarks
+      const optsEl = document.getElementById(cfg.optsId);
+      optsEl.querySelectorAll('.ms-option').forEach(opt => {
+        const v = opt.dataset.val;
+        opt.classList.toggle('selected', sel.includes(v));
+      });
+    }
+
+    function removeMsTag(msId, val) {
+      const sel = SELECTED[msId] || [];
+      const idx = sel.indexOf(val);
+      if (idx >= 0) { sel.splice(idx, 1); updateMsUI(msId); }
+    }
+
+    function filterMsOptions(msId, q) {
+      const cfg = MS_CONFIG[msId];
+      const el = document.getElementById(cfg.optsId);
+      const ql = q.toLowerCase();
+      el.querySelectorAll('.ms-option').forEach(opt => {
+        opt.style.display = opt.dataset.val.toLowerCase().includes(ql) ? '' : 'none';
+      });
+    }
+
+    function buildFilterPayload() {
+      return {
+        placas: SELECTED['ms-placas'] || [],
+        centrosCusto: SELECTED['ms-cc'] || [],
+        modelos: SELECTED['ms-modelos'] || [],
+        status: SELECTED['ms-status'] || []
+      };
+    }
+
+    function applyFilters() {
+      closeAllMs();
+      loadData();
+    }
+
+    function clearFilters() {
+      Object.keys(SELECTED).forEach(k => { SELECTED[k] = []; updateMsUI(k); });
+      loadData();
+    }
+
+    // ============================================================
+    // NAVEGAÇÃO
+    // ============================================================
+    function showPage(name, btn) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+      document.getElementById('page-' + name).classList.add('active');
+      if (btn) btn.classList.add('active');
+
+      // Lazy load per-page data
+      if (name === 'resumo' && DATA) loadResumoTable();
+      if (name === 'acompanhamento' && DATA) loadAcompTable();
+      if (name === 'historico' && DATA) renderHistoricoPage();
+      if (name === 'semplano' && DATA) renderSemPlano();
+      if (name === 'vencimentos' && DATA) renderVencimentos();
+    }
+
+    // ============================================================
+    // RENDER: VISÃO GERAL
+    // ============================================================
+    function renderOverview(d) {
+      const k = d.kpis;
+      setText('k-total', fmt(k.total));
+      setText('k-ok', fmt(k.ok));
+      setText('k-atras', fmt(k.atrasados));
+      setText('k-urg', fmt(k.urgentes));
+      setText('k-prox', fmt(k.proximos));
+      setText('k-ader', k.aderencia + '%');
+      setText('k-itens', fmt(k.totalItens));
+      setText('k-pend', fmt(k.totalPendente));
+      setText('k-ok-pct', k.pctOK + '%');
+      setText('k-atras-pct', k.pctAtrasados + '%');
+
+      renderDonut('donut-svg', 'donut-legend', d.statusDist);
+      renderTiposChart(d.tiposDist);
+      renderHistoricoChart('hist-chart', d.historicoMensal);
+      renderCriticosTable(d.topCriticos);
+      renderItensChart(d.itensSummary);
+    }
+
+    function renderDonut(svgId, legendId, dist) {
+      const COLORS = {
+        'OK': '#22c55e',
+        'ATRASADO': '#ef4444',
+        'URGENTE': '#f97316',
+        'PRÓXIMO': '#eab308',
+        'PROXIMO': '#eab308',
+        'SEM DADO': '#6b7280'
+      };
+      const LABELS = { 'OK': 'Em Dia', 'ATRASADO': 'Atrasado', 'URGENTE': 'Urgente', 'PRÓXIMO': 'Próximo', 'PROXIMO': 'Próximo', 'SEM DADO': 'Sem Dado' };
+      const total = Object.values(dist).reduce((s, v) => s + v, 0);
+      const svg = document.getElementById(svgId);
+      const legend = document.getElementById(legendId);
+      if (!svg || total === 0) return;
+
+      const r = 48, cx = 60, cy = 60, stroke = 18;
+      let offset = -Math.PI / 2;
+      const circ = 2 * Math.PI * r;
+      let arcs = '';
+      const entries = Object.entries(dist).sort((a, b) => b[1] - a[1]);
+
+      entries.forEach(([st, cnt]) => {
+        const frac = cnt / total;
+        const dashLen = frac * circ;
+        const dashOffset = -(offset / (2 * Math.PI)) * circ;
+        const color = COLORS[st.toUpperCase()] || '#6b7280';
+        arcs += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}"
+      stroke-width="${stroke}" stroke-dasharray="${dashLen} ${circ - dashLen}"
+      stroke-dashoffset="${-dashOffset}" transform="rotate(-90 ${cx} ${cy})"
+      style="transition:stroke-dasharray .6s"/>`;
+        offset += frac * 2 * Math.PI;
+      });
+      svg.innerHTML = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="${stroke}"/>` + arcs +
+        `<text x="${cx}" y="${cy - 6}" text-anchor="middle" font-size="18" font-weight="800" fill="var(--nt-white)" font-family="var(--font-mono)">${total}</text>` +
+        `<text x="${cx}" y="${cy + 10}" text-anchor="middle" font-size="9" fill="var(--nt-muted)" font-family="var(--font-main)">veículos</text>`;
+
+      legend.innerHTML = entries.map(([st, cnt]) => {
+        const color = COLORS[st.toUpperCase()] || '#6b7280';
+        const label = LABELS[st.toUpperCase()] || st;
+        const pct = total > 0 ? Math.round(cnt / total * 100) : 0;
+        return `<div class="legend-row">
+      <div class="legend-dot" style="background:${color}"></div>
+      <span style="font-size:.72rem">${label}</span>
+      <span class="legend-val" style="color:${color}">${cnt} <span style="color:var(--nt-muted);font-weight:400">(${pct}%)</span></span>
+    </div>`;
+      }).join('');
+    }
+
+    function renderTiposChart(dist) {
+      const el = document.getElementById('tipos-chart');
+      if (!el) return;
+      const entries = Object.entries(dist).sort((a, b) => b[1] - a[1]);
+      const max = Math.max(...entries.map(e => e[1]), 1);
+      const colors = ['#1a56db', '#14b8a6', '#f97316', '#22c55e', '#eab308', '#8b5cf6'];
+      el.innerHTML = entries.slice(0, 8).map(([tipo, cnt], i) => `
+    <div class="bar-row">
+      <div class="bar-label" title="${esc(tipo)}">${esc(tipo)}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(cnt / max * 100)}%;background:${colors[i % colors.length]}"></div></div>
+      <div class="bar-num">${cnt}</div>
+    </div>`).join('');
+    }
+
+    function renderHistoricoChart(id, data) {
+      const el = document.getElementById(id);
+      if (!el || !data || data.length === 0) {
+        if (el) el.innerHTML = '<div class="empty-state"><p>Sem dados históricos</p></div>';
+        return;
+      }
+      const maxVal = Math.max(...data.flatMap(d => [d.preventiva, d.corretiva]), 1);
+      const W = 700, H = 180, pad = 40, bottom = 30;
+      const n = data.length;
+      const step = (W - 2 * pad) / Math.max(n - 1, 1);
+
+      const pts1 = data.map((d, i) => [(pad + i * step), H - bottom - (d.preventiva / maxVal * (H - bottom - 20))]);
+      const pts2 = data.map((d, i) => [(pad + i * step), H - bottom - (d.corretiva / maxVal * (H - bottom - 20))]);
+
+      const polyline = pts => pts.map(p => p.join(',')).join(' ');
+
+      el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a56db" stop-opacity=".4"/><stop offset="100%" stop-color="#1a56db" stop-opacity="0"/></linearGradient>
+      <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ef4444" stop-opacity=".25"/><stop offset="100%" stop-color="#ef4444" stop-opacity="0"/></linearGradient>
+    </defs>
+    <!-- grid lines -->
+    ${[0, 0.25, 0.5, 0.75, 1].map(f => {
+        const y = (H - bottom) - f * (H - bottom - 20);
+        const val = Math.round(f * maxVal);
+        return `<line x1="${pad}" x2="${W - pad}" y1="${y}" y2="${y}" stroke="rgba(255,255,255,.06)" stroke-width="1"/>
+              <text x="${pad - 5}" y="${y + 4}" text-anchor="end" font-size="9" fill="var(--nt-muted)" font-family="var(--font-mono)">${val}</text>`;
+      }).join('')}
+    <!-- areas -->
+    <polygon points="${pts1.map(p => p.join(',')).join(' ')} ${W - pad},${H - bottom} ${pad},${H - bottom}" fill="url(#g1)"/>
+    <polygon points="${pts2.map(p => p.join(',')).join(' ')} ${W - pad},${H - bottom} ${pad},${H - bottom}" fill="url(#g2)"/>
+    <!-- lines -->
+    <polyline points="${polyline(pts1)}" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="${polyline(pts2)}" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- dots + labels -->
+    ${pts1.map((p, i) => `<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#3b82f6"/>`).join('')}
+    <!-- x labels -->
+    ${data.filter((_, i) => n <= 12 || i % (Math.ceil(n / 12)) === 0).map(d => {
+        const i = data.indexOf(d);
+        const x = pad + i * step;
+        const label = d.mes.substring(5); // MM
+        const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        const mLabel = months[parseInt(label) - 1] || label;
+        return `<text x="${x}" y="${H - 5}" text-anchor="middle" font-size="9" fill="var(--nt-muted)" font-family="var(--font-main)">${mLabel}</text>`;
+      }).join('')}
+    <!-- legend -->
+    <rect x="${W - 100}" y="10" width="8" height="8" rx="2" fill="#3b82f6"/>
+    <text x="${W - 88}" y="18" font-size="9" fill="var(--nt-muted)" font-family="var(--font-main)">Preventiva</text>
+    <rect x="${W - 100}" y="24" width="8" height="8" rx="2" fill="#ef4444"/>
+    <text x="${W - 88}" y="32" font-size="9" fill="var(--nt-muted)" font-family="var(--font-main)">Corretiva</text>
+  </svg>`;
+    }
+
+    function renderCriticosTable(rows) {
+      const tbody = document.getElementById('criticos-tbody');
+      const count = document.getElementById('criticos-count');
+      if (!tbody) return;
+      count.textContent = rows.length + ' veículos';
+      if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="10" class="empty-state">Nenhum veículo crítico</td></tr>'; return; }
+      tbody.innerHTML = rows.map(r => `
+    <tr onclick="openVehicleDetail('${esc(r.placa)}')">
+      <td><strong class="text-mono">${esc(r.placa)}</strong></td>
+      <td class="td-muted">${esc(r.modelo)}</td>
+      <td>${esc(r.tipo)}</td>
+      <td class="td-muted" title="${esc(r.centroCusto)}">${shortCC(r.centroCusto)}</td>
+      <td class="text-mono">${fmt(r.kmAtual)}</td>
+      <td class="td-muted" title="${esc(r.itemCritico)}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;">${shortItem(r.itemCritico)}</td>
+      <td><span style="color:var(--nt-red);font-weight:700">${r.atrasados || 0}</span></td>
+      <td><span style="color:var(--nt-orange-d);font-weight:700">${r.urgentes || 0}</span></td>
+      <td><span style="color:var(--nt-green);font-weight:700">${r.ok || 0}</span></td>
+      <td>${statusBadge(r.status)}</td>
+    </tr>`).join('');
+    }
+
+    function renderItensChart(items) {
+      const el = document.getElementById('itens-chart');
+      if (!el || !items) return;
+      const max = Math.max(...items.map(i => i.atrasados), 1);
+      el.innerHTML = items.slice(0, 12).map(i => `
+    <div class="bar-row">
+      <div class="bar-label" title="${esc(i.item)}">${shortItem(i.item)}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(i.atrasados / max * 100)}%;background:#ef4444"></div></div>
+      <div class="bar-num">${i.atrasados}</div>
+    </div>`).join('');
+    }
+
+    // ============================================================
+    // RENDER: RESUMO TABLE
+    // ============================================================
+    function loadResumoTable(page) {
+      resumoPage = page || 1;
+      const filters = buildFilterPayload();
+      google.script.run
+        .withSuccessHandler(renderResumoTable)
+        .withFailureHandler(onError)
+        .getResumoTable(filters, resumoPage, PAGE_SIZE);
+    }
+
+    function renderResumoTable(d) {
+      if (!d.success) return;
+      document.getElementById('resumo-count').textContent = d.total + ' veículos';
+      const tbody = document.getElementById('resumo-tbody');
+      if (d.items.length === 0) { tbody.innerHTML = '<tr><td colspan="18" style="text-align:center;color:var(--nt-muted);padding:20px">Nenhum resultado</td></tr>'; return; }
+      tbody.innerHTML = d.items.map(r => `
+    <tr onclick="openVehicleDetail('${esc(r.placa)}')">
+      <td><strong class="text-mono">${esc(r.placa)}</strong></td>
+      <td class="td-muted">${esc(r.modelo)}</td>
+      <td>${esc(r.tipo)}</td>
+      <td class="td-muted">${esc(r.cidade)}</td>
+      <td class="td-muted" title="${esc(r.centroCusto)}">${shortCC(r.centroCusto)}</td>
+      <td class="text-mono">${fmt(r.kmAtual)}</td>
+      <td class="text-mono">${kmProxColor(r.kmProxima)}</td>
+      <td class="td-muted text-mono">${r.dataUltMnt || '—'}</td>
+      <td class="text-mono" style="text-align:center">${r.totalItens || 0}</td>
+      <td style="text-align:center"><span style="color:var(--nt-red);font-weight:700">${r.atrasados || 0}</span></td>
+      <td style="text-align:center"><span style="color:var(--nt-orange-d);font-weight:700">${r.urgentes || 0}</span></td>
+      <td style="text-align:center"><span style="color:var(--nt-yellow);font-weight:700">${r.proximos || 0}</span></td>
+      <td style="text-align:center"><span style="color:var(--nt-green);font-weight:700">${r.ok || 0}</span></td>
+      <td class="text-mono" style="text-align:center">${r.totalDeveria || 0}</td>
+      <td class="text-mono" style="text-align:center">${r.totalReal || 0}</td>
+      <td class="text-mono" style="text-align:center">${r.totalPend || 0}</td>
+      <td>${statusBadge(r.status)}</td>
+      <td>${vencBadge(r.vencimento)}</td>
+    </tr>`).join('');
+      renderPagination('resumo-pag', d.page, d.totalPages, p => loadResumoTable(p));
+    }
+
+    // ============================================================
+    // RENDER: ACOMPANHAMENTO TABLE
+    // ============================================================
+    function loadAcompTable(page) {
+      acompPage = page || 1;
+      const filters = buildFilterPayload();
+      google.script.run
+        .withSuccessHandler(renderAcompTable)
+        .withFailureHandler(onError)
+        .getAcompanhamentoTable(filters, acompPage, PAGE_SIZE);
+    }
+
+    function renderAcompTable(d) {
+      if (!d.success) return;
+      document.getElementById('acomp-count').textContent = d.total + ' itens';
+      const tbody = document.getElementById('acomp-tbody');
+      if (d.items.length === 0) { tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;color:var(--nt-muted);padding:20px">Nenhum resultado</td></tr>'; return; }
+      tbody.innerHTML = d.items.map(r => `
+    <tr onclick="openVehicleDetail('${esc(r['Placa'] || '')}')">
+      <td><strong class="text-mono">${esc(r['Placa'] || '')}</strong></td>
+      <td class="td-muted">${esc(r['Modelo'] || '')}</td>
+      <td>${esc(r['Tipo'] || '')}</td>
+      <td class="td-muted" title="${esc(r['Centro de Custo'] || '')}">${shortCC(r['Centro de Custo'] || '')}</td>
+      <td title="${esc(r['Item MNT'] || '')}">${shortItem(r['Item MNT'] || '')}</td>
+      <td class="text-mono">${fmt(r['Intervalo(km)'])}</td>
+      <td class="text-mono">${fmt(r['KM Atual'])}</td>
+      <td class="text-mono">${fmt(r['KM Últ.MNT'])}</td>
+      <td class="td-muted text-mono">${r['Data Últ.MNT'] || '—'}</td>
+      <td class="text-mono">${fmt(r['KM Desde Últ.'])}</td>
+      <td class="text-mono">${fmt(r['Próx.MNT(km)'])}</td>
+      <td class="text-mono">${kmProxColor(r['KM p/ Próxima'])}</td>
+      <td class="text-mono" style="text-align:center">${r['Qtd Deveria'] || 0}</td>
+      <td class="text-mono" style="text-align:center">${r['Qtd Realizada'] || 0}</td>
+      <td class="text-mono" style="text-align:center">${r['Qtd Pendente'] || 0}</td>
+      <td>${statusBadge(r['Status'] || '')}</td>
+    </tr>`).join('');
+      renderPagination('acomp-pag', d.page, d.totalPages, p => loadAcompTable(p));
+    }
+
+    // ============================================================
+    // RENDER: HISTÓRICO PAGE
+    // ============================================================
+    function renderHistoricoPage() {
+      if (!DATA) return;
+      renderHistoricoChart('hist-chart-full', DATA.historicoMensal);
+
+      // Preventiva vs Corretiva total
+      const totals = DATA.historicoMensal.reduce((a, d) => {
+        a.prev += d.preventiva; a.corr += d.corretiva; return a;
+      }, { prev: 0, corr: 0 });
+      const max = Math.max(totals.prev, totals.corr, 1);
+      document.getElementById('tipo-hist-chart').innerHTML = [
+        ['Preventivas', totals.prev, '#3b82f6'],
+        ['Corretivas', totals.corr, '#ef4444']
+      ].map(([l, v, c]) => `
+    <div class="bar-row">
+      <div class="bar-label">${l}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v / max * 100)}%;background:${c}"></div></div>
+      <div class="bar-num">${fmt(v)}</div>
+    </div>`).join('');
+
+      // Top itens realizados (from itensSummary)
+      const iel = document.getElementById('itens-hist-chart');
+      const items = (DATA.itensSummary || []).sort((a, b) => (b.total || 0) - (a.total || 0));
+      const maxI = Math.max(...items.map(i => i.total || 0), 1);
+      iel.innerHTML = items.slice(0, 10).map(i => `
+    <div class="bar-row">
+      <div class="bar-label" title="${esc(i.item)}">${shortItem(i.item)}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round((i.total || 0) / maxI * 100)}%;background:#1a56db"></div></div>
+      <div class="bar-num">${i.total || 0}</div>
+    </div>`).join('');
+    }
+
+    // ============================================================
+    // RENDER: SEM PLANO
+    // ============================================================
+    function renderSemPlano() {
+      if (!DATA || !DATA.semPlanoSummary) return;
+      const sp = DATA.semPlanoSummary;
+      document.getElementById('sp-total').textContent = sp.total;
+      document.getElementById('sp-count').textContent = sp.total + ' veículos';
+
+      // Tipos chart
+      const tipos = sp.porTipo || {};
+      const entries = Object.entries(tipos).sort((a, b) => b[1] - a[1]);
+      const max = Math.max(...entries.map(e => e[1]), 1);
+      const colors = ['#ef4444', '#f97316', '#eab308', '#3b82f6', '#8b5cf6', '#14b8a6'];
+      document.getElementById('sp-tipos-chart').innerHTML = entries.map(([t, cnt], i) => `
+    <div class="bar-row">
+      <div class="bar-label">${esc(t)}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(cnt / max * 100)}%;background:${colors[i % colors.length]}"></div></div>
+      <div class="bar-num">${cnt}</div>
+    </div>`).join('');
+
+      // Donut
+      renderDonut('sp-donut', 'sp-donut-legend', Object.fromEntries(entries));
+
+      // Table
+      const tbody = document.getElementById('sp-tbody');
+      tbody.innerHTML = (sp.lista || []).map(r => `
+    <tr>
+      <td><strong class="text-mono">${esc(r['Placa'] || '')}</strong></td>
+      <td class="td-muted">${esc(r['Modelo'] || '')}</td>
+      <td>${esc(r['Tipo Veículo'] || '')}</td>
+      <td class="td-muted">${esc(r['Cidade'] || '')}</td>
+      <td class="td-muted">${esc(r['Centro de Custo'] || '')}</td>
+      <td class="text-mono">${fmt(r['KM Atual'])}</td>
+      <td>${r['Ativo'] === 'SIM' ? '<span style="color:var(--nt-green)">✓ Ativo</span>' : '<span style="color:var(--nt-muted)">—</span>'}</td>
+    </tr>`).join('');
+    }
+
+    // ============================================================
+    // RENDER: VENCIMENTOS
+    // ============================================================
+    function renderVencimentos() {
+      if (!DATA) return;
+      const vd = DATA.vencimentoSummary || [];
+      // Bar
+      const max = Math.max(...vd.map(v => v.qtd), 1);
+      const VCOLORS = { '<2025': '#ef4444', 'janeiro': '#f97316', 'fevereiro': '#f97316', 'março': '#eab308', 'abril': '#eab308', 'maio': '#14b8a6', 'junho': '#14b8a6' };
+      document.getElementById('venc-bar-chart').innerHTML = vd.map(v => `
+    <div class="bar-row">
+      <div class="bar-label">${esc(v.periodo)}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v.qtd / max * 100)}%;background:${VCOLORS[v.periodo] || '#6b7280'}"></div></div>
+      <div class="bar-num">${v.qtd}</div>
+    </div>`).join('');
+
+      // Chips
+      const chipClass = p => {
+        if (p === '<2025') return 'venc-old';
+        if (p === 'janeiro') return 'venc-jan';
+        if (p === 'fevereiro') return 'venc-feb';
+        if (p === 'março') return 'venc-mar';
+        if (p === 'abril') return 'venc-abr';
+        if (p === 'maio') return 'venc-mai';
+        return 'venc-ok';
+      };
+      document.getElementById('venc-chips').innerHTML = vd.map(v => `
+    <div class="venc-chip ${chipClass(v.periodo)}" onclick="filterVencTable('${esc(v.periodo)}')">
+      ${esc(v.periodo)} <strong>${v.qtd}</strong>
+    </div>`).join('');
+
+      loadVencTable();
+    }
+
+    let vencFilter = null;
+    function filterVencTable(periodo) {
+      vencFilter = periodo === vencFilter ? null : periodo;
+      document.getElementById('venc-table-title').textContent =
+        vencFilter ? 'Vencimentos: ' + vencFilter : 'Todos os Vencimentos';
+      loadVencTable();
+    }
+
+    function loadVencTable(page) {
+      if (!DATA) return;
+      vencPage = page || 1;
+      // Filter from DATA.resumo equivalent (topCriticos has status info)
+      // We'll use the full resumo via server call
+      const filters = buildFilterPayload();
+      google.script.run
+        .withSuccessHandler(d => renderVencTable(d))
+        .withFailureHandler(onError)
+        .getResumoTable(filters, vencPage, PAGE_SIZE);
+    }
+
+    function renderVencTable(d) {
+      if (!d.success) return;
+      let items = d.items;
+      if (vencFilter) {
+        items = items.filter(r => {
+          const v = String(r.vencimento || '').toLowerCase().trim();
+          return v === vencFilter.toLowerCase();
+        });
+      }
+      document.getElementById('venc-count').textContent = items.length + ' veículos';
+      const tbody = document.getElementById('venc-tbody');
+      tbody.innerHTML = items.map(r => `
+    <tr onclick="openVehicleDetail('${esc(r.placa)}')">
+      <td><strong class="text-mono">${esc(r.placa)}</strong></td>
+      <td class="td-muted">${esc(r.modelo)}</td>
+      <td>${esc(r.tipo)}</td>
+      <td class="td-muted" title="${esc(r.centroCusto)}">${shortCC(r.centroCusto)}</td>
+      <td>${statusBadge(r.status)}</td>
+      <td>${vencBadge(r.vencimento)}</td>
+      <td style="text-align:center"><span style="color:var(--nt-red);font-weight:700">${r.atrasados || 0}</span></td>
+      <td style="text-align:center"><span style="color:var(--nt-orange-d);font-weight:700">${r.urgentes || 0}</span></td>
+    </tr>`).join('');
+      renderPagination('venc-pag', d.page, d.totalPages, p => loadVencTable(p));
+    }
+
+    // ============================================================
+    // MODAL: DETALHE VEÍCULO
+    // ============================================================
+    function openVehicleDetail(placa) {
+      const modal = document.getElementById('detail-modal');
+      modal.classList.add('open');
+      document.getElementById('modal-title').textContent = '🚗 Detalhes — ' + placa;
+      document.getElementById('modal-body').innerHTML = '<div class="empty-state"><p>Carregando dados de ' + placa + '…</p></div>';
+
+      google.script.run
+        .withSuccessHandler(renderVehicleModal)
+        .withFailureHandler(() => {
+          document.getElementById('modal-body').innerHTML = '<div class="empty-state"><p>Erro ao carregar</p></div>';
+        })
+        .getVehicleDetail(placa);
+    }
+
+    function closeModal() {
+      document.getElementById('detail-modal').classList.remove('open');
+    }
+
+    function renderVehicleModal(d) {
+      if (!d.success) return;
+      const r = d.resumo || {};
+      const body = document.getElementById('modal-body');
+      body.innerHTML = `
+    <div class="modal-kpis">
+      <div class="modal-kpi"><div class="modal-kpi-label">KM Atual</div><div class="modal-kpi-val text-mono">${fmt(r['KM Atual'])}</div></div>
+      <div class="modal-kpi"><div class="modal-kpi-label">KM p/ Próxima</div><div class="modal-kpi-val">${kmProxColor(r['KM p/ Próxima'])}</div></div>
+      <div class="modal-kpi"><div class="modal-kpi-label">Status Geral</div><div class="modal-kpi-val">${statusBadge(r['Status Geral'])}</div></div>
+      <div class="modal-kpi"><div class="modal-kpi-label">Situação</div><div class="modal-kpi-val">${vencBadge(r['Unnamed: 22'] || '')}</div></div>
+      <div class="modal-kpi"><div class="modal-kpi-label">Itens Atrasados</div><div class="modal-kpi-val text-mono" style="color:var(--nt-red)">${r['Atrasados'] || 0}</div></div>
+      <div class="modal-kpi"><div class="modal-kpi-label">Itens OK</div><div class="modal-kpi-val text-mono" style="color:var(--nt-green)">${r['OK'] || 0}</div></div>
+      <div class="modal-kpi"><div class="modal-kpi-label">Total Deveria</div><div class="modal-kpi-val text-mono">${r['Total Deveria'] || 0}</div></div>
+      <div class="modal-kpi"><div class="modal-kpi-label">Pendentes</div><div class="modal-kpi-val text-mono" style="color:var(--nt-orange-d)">${r['Total Pendente'] || 0}</div></div>
+    </div>
+    <div style="font-size:.72rem;color:var(--nt-muted);margin-bottom:14px;">
+      Modelo: <strong style="color:var(--nt-white)">${esc(r['Modelo'] || '')}</strong> &nbsp;|&nbsp;
+      Tipo: <strong style="color:var(--nt-white)">${esc(r['Tipo'] || '')}</strong> &nbsp;|&nbsp;
+      CC: <strong style="color:var(--nt-white)">${esc(r['Centro de Custo'] || '')}</strong>
+    </div>
+
+    <div class="section-title" style="margin-bottom:10px;">Acompanhamento por Item</div>
+    <div class="table-wrap" style="border:1px solid var(--nt-border);border-radius:8px;margin-bottom:16px;">
+      <table>
+        <thead><tr><th>Item MNT</th><th>Intervalo</th><th>KM Últ.</th><th>Data Últ.</th><th>KM p/ Próx.</th><th>Deveria</th><th>Realiz.</th><th>Pend.</th><th>Status</th></tr></thead>
+        <tbody>${(d.itens || []).map(it => `
+          <tr>
+            <td title="${esc(it['Item MNT'] || '')}">${shortItem(it['Item MNT'] || '')}</td>
+            <td class="text-mono">${fmt(it['Intervalo(km)'])}</td>
+            <td class="text-mono">${fmt(it['KM Últ.MNT'])}</td>
+            <td class="td-muted text-mono">${it['Data Últ.MNT'] || '—'}</td>
+            <td>${kmProxColor(it['KM p/ Próxima'])}</td>
+            <td class="text-mono">${it['Qtd Deveria'] || 0}</td>
+            <td class="text-mono">${it['Qtd Realizada'] || 0}</td>
+            <td class="text-mono">${it['Qtd Pendente'] || 0}</td>
+            <td>${statusBadge(it['Status'] || '')}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-title" style="margin-bottom:10px;">Últimas Manutenções (30)</div>
+    <div class="table-wrap" style="border:1px solid var(--nt-border);border-radius:8px;">
+      <table>
+        <thead><tr><th>Item</th><th>Data</th><th>KM</th><th>Tipo</th><th>Situação</th><th>Oficina</th></tr></thead>
+        <tbody>${(d.historico || []).map(h => `
+          <tr>
+            <td title="${esc(h['Item MNT'] || '')}">${shortItem(h['Item MNT'] || '')}</td>
+            <td class="text-mono td-muted">${h['Data Manutenção'] || '—'}</td>
+            <td class="text-mono">${fmt(h['KM Manutenção'])}</td>
+            <td><span style="font-size:.68rem;padding:2px 6px;border-radius:4px;background:${h['Tipo'] === 'PREVENTIVA' ? 'rgba(59,130,246,.15)' : 'rgba(239,68,68,.15)'};color:${h['Tipo'] === 'PREVENTIVA' ? 'var(--nt-blue-l)' : 'var(--nt-red)'}">${esc(h['Tipo'] || '')}</span></td>
+            <td class="td-muted">${esc(h['Situação Manut.'] || '')}</td>
+            <td class="td-muted" title="${esc(h['Oficina'] || '')}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis">${esc((h['Oficina'] || '').substring(0, 30))}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+    }
+
+    // ============================================================
+    // PAGINAÇÃO
+    // ============================================================
+    function renderPagination(elId, page, total, cb) {
+      const el = document.getElementById(elId);
+      if (!el || total <= 1) { if (el) el.innerHTML = ''; return; }
+      const pages = [];
+      if (page > 1) pages.push(['‹', page - 1]);
+      const start = Math.max(1, page - 2), end = Math.min(total, page + 2);
+      if (start > 1) { pages.push([1, 1]); if (start > 2) pages.push(['…', null]); }
+      for (let p = start; p <= end; p++) pages.push([p, p]);
+      if (end < total) { if (end < total - 1) pages.push(['…', null]); pages.push([total, total]); }
+      if (page < total) pages.push(['›', page + 1]);
+
+      el.innerHTML = pages.map(([label, p]) => {
+        if (p === null) return `<span class="pg-info">${label}</span>`;
+        return `<button class="pg-btn${p === page ? ' active' : ''}" ${p === page ? 'disabled' : ''} onclick="(${cb.toString()})(${p})">${label}</button>`;
+      }).join('');
+    }
+
+    // ============================================================
+    // UTILITÁRIOS VISUAIS
+    // ============================================================
+    function statusBadge(s) {
+      const su = (s || '').toUpperCase().trim();
+      if (su === 'OK') return '<span class="status-badge badge-ok">✓ OK</span>';
+      if (su === 'ATRASADO') return '<span class="status-badge badge-atras">⚠ Atrasado</span>';
+      if (su === 'URGENTE') return '<span class="status-badge badge-urg">🔴 Urgente</span>';
+      if (su === 'PRÓXIMO' || su === 'PROXIMO') return '<span class="status-badge badge-prox">⏱ Próximo</span>';
+      return '<span class="status-badge badge-sem">— ' + esc(s) + '</span>';
+    }
+
+    function vencBadge(v) {
+      const s = (v || '').trim();
+      if (!s || s === '') return '<span class="status-badge badge-sem">Não Vencida</span>';
+      if (s === 'Não Vencida') return '<span class="status-badge badge-ok">✓ Não Vencida</span>';
+      if (s === 'Vencida') return '<span class="status-badge badge-atras">✗ Vencida</span>';
+      if (s === 'Vencida em Tolerância') return '<span class="status-badge badge-prox">⚡ Em Tolerância</span>';
+      return '<span class="status-badge badge-sem">' + esc(s) + '</span>';
+    }
+
+    function kmProxColor(v) {
+      const n = Number(v || 0);
+      if (isNaN(n)) return '<span class="text-mono td-muted">—</span>';
+      const color = n < 0 ? 'var(--nt-red)' : n < 2000 ? 'var(--nt-yellow)' : 'var(--nt-green)';
+      return `<span class="text-mono" style="color:${color};font-weight:600">${n > 0 ? '+' : ''}${fmt(n)}</span>`;
+    }
+
+    function fmt(n) {
+      if (n === null || n === undefined || n === '') return '—';
+      const num = Number(n);
+      if (isNaN(num)) return '—';
+      return num.toLocaleString('pt-BR');
+    }
+
+    function shortItem(s) {
+      return (s || '').replace('MNTPREV - ', '').replace('MNTPREV -', '');
+    }
+
+    function shortCC(s) {
+      if (!s) return '—';
+      const parts = s.split(' ');
+      return parts.length > 3 ? parts.slice(0, 3).join(' ') + '…' : s;
+    }
+
+    function esc(s) {
+      return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function setText(id, v) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = v;
+    }
+
+    // ============================================================
+    // TOAST
+    // ============================================================
+    function showToast(msg, type) {
+      const toast = document.getElementById('toast');
+      const item = document.createElement('div');
+      item.className = 'toast-item';
+      const icon = type === 'error' ? '⚠️' : '✓';
+      item.innerHTML = `<span>${icon}</span><span>${esc(msg)}</span>`;
+      toast.appendChild(item);
+      setTimeout(() => item.remove(), 4000);
+    }
+
+    // ============================================================
+    // TEMA
+    // ============================================================
+    function toggleTheme() {
+      const body = document.body;
+      const btn = document.getElementById('theme-btn');
+      body.classList.toggle('light');
+      const isLight = body.classList.contains('light');
+      btn.textContent = isLight ? '🌙' : '☀️';
+      localStorage.setItem('nt-theme', isLight ? 'light' : 'dark');
+    }
+    // Restaurar tema
+    (function () {
+      if (localStorage.getItem('nt-theme') === 'light') {
+        document.body.classList.add('light');
+        document.getElementById('theme-btn').textContent = '🌙';
+      }
+    })();
+
+    // ============================================================
+    // REFRESH LOADING STATE
+    // ============================================================
+    function setRefreshLoading(on) {
+      const btn = document.getElementById('refresh-btn');
+      if (!btn) return;
+      btn.classList.toggle('loading', on);
+      btn.disabled = on;
+    }
+
+    // Close modal on backdrop click
+    document.getElementById('detail-modal').addEventListener('click', function (e) {
+      if (e.target === this) closeModal();
+    });
+  </script>
+</body>
+
+</html>
