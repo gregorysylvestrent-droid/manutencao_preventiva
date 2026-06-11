@@ -123,6 +123,29 @@ Quando as abas `Acompanhamento por Item`, `Resumo por Veículo` ou `Sem Plano` j
    - copie a URL gerada.
 8. Acesse a URL do app para visualizar o painel.
 
+
+## Otimização de atualização com cache
+
+Para planilhas grandes, o dashboard agora separa a atualização em dois níveis:
+
+- **Atualizar tela**: recarrega os indicadores e tabelas a partir das abas técnicas de cache, evitando recalcular todas as bases brutas a cada clique.
+- **Reprocessar base**: executa o cálculo pesado, lendo `Cadastro`, `Plano Mnt`, `Histórico MNTPREV`, `Sem Plano` e `Meses Vencimento`, e grava o resultado consolidado em abas técnicas ocultas.
+
+As abas técnicas são criadas automaticamente pelo backend e ficam ocultas na planilha:
+
+| Aba técnica | Conteúdo |
+| --- | --- |
+| `_cache_metadata` | Versão do cache, data/hora da última atualização e totais de linhas. |
+| `_cache_resumo` | Resultado consolidado de `Resumo por Veículo`. |
+| `_cache_acompanhamento` | Resultado consolidado de `Acompanhamento por Item`. |
+| `_cache_sem_plano` | Lista consolidada de veículos sem plano. |
+| `_cache_historico` | Histórico normalizado usado nos detalhes por veículo. |
+| `_cache_historico_mensal` | Agregação mensal do histórico para os gráficos. |
+
+No primeiro acesso, se ainda não houver cache válido, o sistema cria essas abas automaticamente. Depois disso, as chamadas sob demanda, como tabelas paginadas e detalhes, reutilizam a base cacheada para reduzir leituras repetidas das abas grandes.
+
+Para manter os dados atualizados, use o botão **Reprocessar base** após colar/importar novas bases ou crie um gatilho de tempo no Apps Script chamando `atualizarBaseDashboard`, por exemplo a cada 30 ou 60 minutos.
+
 ## Uso recomendado
 
 1. Atualize/cole as bases nas abas de origem, especialmente:

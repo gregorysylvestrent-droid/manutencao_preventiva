@@ -15,6 +15,37 @@ const SHEETS = {
   MESES_VENC:  ['Meses Vencimento']
 };
 
+// ---- ABAS TÉCNICAS DE CACHE (criadas/ocultadas automaticamente) ----
+const CACHE_SCHEMA_VERSION = '2026-06-11-v1';
+const CACHE_SHEETS = {
+  META:      '_cache_metadata',
+  RESUMO:    '_cache_resumo',
+  ACOMP:     '_cache_acompanhamento',
+  SEM_PLANO: '_cache_sem_plano',
+  HISTORICO: '_cache_historico',
+  HIST_MENSAL: '_cache_historico_mensal'
+};
+
+const CACHE_HEADERS = {
+  RESUMO: [
+    'Placa', 'Modelo', 'Tipo', 'Cidade', 'Centro de Custo', 'KM Atual', 'KM Últ.MNT',
+    'Data Últ.MNT', 'Item Mais Crítico', 'KM p/ Próxima', 'Próx.MNT(km)', 'Total Itens',
+    'Atrasados', 'Urgentes', 'Próximos', 'OK', 'Sem Dado', 'Total Deveria',
+    'Total Realizado', 'Total Pendente', 'Status Geral', 'Vencimento'
+  ],
+  ACOMP: [
+    'Placa', 'Modelo', 'Tipo', 'Cidade', 'Centro de Custo', 'Item MNT', 'Intervalo(km)',
+    'KM Atual', 'KM Últ.MNT', 'KM Desde Últ.', 'Próx.MNT(km)', 'KM p/ Próxima',
+    'Qtd Deveria', 'Qtd Realizada', 'Qtd Pendente', 'Data Últ.MNT', 'Status'
+  ],
+  SEM_PLANO: ['Placa', 'Modelo', 'Tipo Veículo', 'Cidade', 'Centro de Custo', 'KM Atual', 'Ativo'],
+  HISTORICO: [
+    'Placa', 'Modelo', 'Centro de Custo', 'Item MNT', 'KM Manutenção',
+    'Data Manutenção', 'Tipo', 'Situação Manut.', 'Oficina'
+  ],
+  HIST_MENSAL: ['mes', 'preventiva', 'corretiva', 'total']
+};
+
 // ---- PONTO DE ENTRADA ----
 function doGet() {
   return HtmlService
@@ -32,42 +63,22 @@ function getDashboardData(filters) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     filters = filters || {};
 
-    // ── 1. Lê as bases brutas (sem fórmulas) ──
-    const cadastro    = readCadastro(ss);
-    const plano       = readPlano(ss);
-    const historico   = readHistorico(ss);
-    const semPlanoSh  = readSemPlano(ss);
+    const base = getDashboardBase(ss, false, false);
+    const resumoFilt = applyFilters(base.resumo, filters);
+    const acompFilt  = applyFilters(base.acomp, filters);
 
-    // ── 2. Calcula visões computadas a partir das bases ──
-    const computed    = buildComputedViews(cadastro, plano, historico);
-
-    // ── 3. Tenta ler abas calculadas do Sheet; se vazias/com fórmulas, usa computed ──
-    const resumoSheet = readResumoSheet(ss);
-    const acompSheet  = readAcompSheet(ss);
-
-    const resumoBase  = resumoSheet.length  ? resumoSheet  : computed.resumo;
-    const acompBase   = acompSheet.length   ? acompSheet   : computed.acomp;
-    const semPlanoBase = semPlanoSh.length  ? semPlanoSh   : computed.semPlano;
-
-    // ── 4. Aplica filtros ──
-    const resumoFilt  = applyFilters(resumoBase, filters);
-    const acompFilt   = applyFilters(acompBase, filters);
-
-    // ── 5. Agrega KPIs e métricas ──
-    const kpis           = computeKPIs(resumoFilt);
-    const statusDist     = computeStatusDist(resumoFilt);
-    const tiposDist      = groupBy(resumoFilt, 'Tipo');
-    const topCriticos    = getTopCriticos(resumoFilt, 15);
-    const historicoMensal = computeHistoricoMensal(historico);
-    const itensSummary   = computeItensSummary(acompFilt);
-    const semPlanoSum    = {
-      total: semPlanoBase.length,
-      porTipo: groupBy(semPlanoBase, 'Tipo Veículo'),
-      lista: semPlanoBase.slice(0, 100)
+    const kpis            = computeKPIs(resumoFilt);
+    const statusDist      = computeStatusDist(resumoFilt);
+    const tiposDist       = groupBy(resumoFilt, 'Tipo');
+    const topCriticos     = getTopCriticos(resumoFilt, 15);
+    const itensSummary    = computeItensSummary(acompFilt);
+    const semPlanoSum     = {
+      total: base.semPlano.length,
+      porTipo: groupBy(base.semPlano, 'Tipo Veículo'),
+      lista: base.semPlano.slice(0, 100)
     };
-    const mesesVenc      = readMesesVencimento(ss);
-    const vencimentoSum  = computeVencimentoSummary(mesesVenc, resumoFilt);
-    const filterOptions  = buildFilterOptions(resumoBase);
+    const vencimentoSum   = computeVencimentoSummary({}, resumoFilt);
+    const filterOptions   = buildFilterOptions(base.resumo);
 
     return {
       success: true,
@@ -75,17 +86,211 @@ function getDashboardData(filters) {
       statusDist,
       tiposDist,
       topCriticos,
-      historicoMensal,
+      historicoMensal: base.historicoMensal,
       itensSummary,
       semPlanoSummary: semPlanoSum,
       vencimentoSummary: vencimentoSum,
       filterOptions,
       totalVeiculos: resumoFilt.length,
-      timestamp: new Date().toISOString()
+      timestamp: base.cacheTimestamp || new Date().toISOString(),
+      cacheInfo: {
+        fromCache: base.fromCache,
+        refreshedAt: base.cacheTimestamp || '',
+        resumoRows: base.resumo.length,
+        acompRows: base.acomp.length,
+        semPlanoRows: base.semPlano.length
+      }
     };
   } catch (e) {
     return { success: false, error: e.message, stack: e.stack };
   }
+}
+
+/**
+ * Reprocessa as bases brutas e grava abas técnicas de cache.
+ * Use esta função no botão pesado de atualização ou em gatilho temporizado.
+ */
+function atualizarBaseDashboard() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const base = rebuildDashboardBase(ss);
+    return {
+      success: true,
+      timestamp: base.cacheTimestamp,
+      resumoRows: base.resumo.length,
+      acompRows: base.acomp.length,
+      semPlanoRows: base.semPlano.length,
+      historicoRows: base.historico.length
+    };
+  } catch (e) {
+    return { success: false, error: e.message, stack: e.stack };
+  }
+}
+
+// ============================================================
+// CACHE CONSOLIDADO
+// ============================================================
+function getDashboardBase(ss, forceRefresh, includeHistorico) {
+  if (!forceRefresh) {
+    const cached = readDashboardCache(ss, includeHistorico);
+    if (cached) return cached;
+  }
+  return rebuildDashboardBase(ss);
+}
+
+function rebuildDashboardBase(ss) {
+  const cadastro   = readCadastro(ss);
+  const plano      = readPlano(ss);
+  const historico  = readHistorico(ss);
+  const semPlanoSh = readSemPlano(ss);
+
+  const computed   = buildComputedViews(cadastro, plano, historico);
+  const resumoSh   = readResumoSheet(ss);
+  const acompSh    = readAcompSheet(ss);
+  const mesesVenc  = readMesesVencimento(ss);
+
+  const resumo     = enrichResumoVencimento(resumoSh.length ? resumoSh : computed.resumo, mesesVenc);
+  const acomp      = acompSh.length ? acompSh : computed.acomp;
+  const semPlano   = semPlanoSh.length ? semPlanoSh : computed.semPlano;
+  const historicoMensal = computeHistoricoMensal(historico);
+  const timestamp  = new Date().toISOString();
+  const base = {
+    resumo,
+    acomp,
+    semPlano,
+    historico,
+    historicoMensal,
+    cacheTimestamp: timestamp,
+    fromCache: false
+  };
+  writeDashboardCache(ss, base);
+  return base;
+}
+
+function readDashboardCache(ss, includeHistorico) {
+  const meta = readCacheMetadata(ss);
+  if (!meta || meta.schemaVersion !== CACHE_SCHEMA_VERSION || !meta.refreshedAt) return null;
+
+  const resumo   = readCacheTable(ss, 'RESUMO').map(mapResumoRow);
+  const acomp    = readCacheTable(ss, 'ACOMP').map(mapAcompRow);
+  const semPlano = readCacheTable(ss, 'SEM_PLANO').map(mapSemPlanoRow);
+  const historicoMensal = readCacheTable(ss, 'HIST_MENSAL').map(mapHistoricoMensalRow);
+  const historico = includeHistorico ? readCacheTable(ss, 'HISTORICO').map(mapHistoricoRow) : [];
+  if (!resumo.length && !acomp.length && !semPlano.length && !historicoMensal.length) return null;
+
+  return {
+    resumo,
+    acomp,
+    semPlano,
+    historico,
+    historicoMensal,
+    cacheTimestamp: meta.refreshedAt,
+    fromCache: true
+  };
+}
+
+function writeDashboardCache(ss, base) {
+  writeCacheTable(ss, 'RESUMO', base.resumo);
+  writeCacheTable(ss, 'ACOMP', base.acomp);
+  writeCacheTable(ss, 'SEM_PLANO', base.semPlano);
+  writeCacheTable(ss, 'HISTORICO', base.historico);
+  writeCacheTable(ss, 'HIST_MENSAL', base.historicoMensal);
+
+  const meta = [
+    ['schemaVersion', CACHE_SCHEMA_VERSION],
+    ['refreshedAt', base.cacheTimestamp],
+    ['resumoRows', base.resumo.length],
+    ['acompRows', base.acomp.length],
+    ['semPlanoRows', base.semPlano.length],
+    ['historicoRows', base.historico.length]
+  ];
+  const sh = ensureSheet(ss, CACHE_SHEETS.META);
+  sh.clearContents();
+  sh.getRange(1, 1, meta.length, 2).setValues(meta);
+  sh.hideSheet();
+}
+
+function readCacheMetadata(ss) {
+  const sh = ss.getSheetByName(CACHE_SHEETS.META);
+  if (!sh || sh.getLastRow() < 1) return null;
+  const values = sh.getRange(1, 1, sh.getLastRow(), 2).getValues();
+  const meta = {};
+  values.forEach(row => {
+    const key = String(row[0] || '').trim();
+    if (key) meta[key] = row[1];
+  });
+  return meta;
+}
+
+function readCacheTable(ss, key) {
+  const sh = ss.getSheetByName(CACHE_SHEETS[key]);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const lastRow = sh.getLastRow();
+  const lastCol = Math.max(sh.getLastColumn(), CACHE_HEADERS[key].length);
+  return sheetToObjects(sh.getRange(1, 1, lastRow, lastCol).getValues(), 0);
+}
+
+function writeCacheTable(ss, key, rows) {
+  const headers = CACHE_HEADERS[key];
+  const sh = ensureSheet(ss, CACHE_SHEETS[key]);
+  sh.clearContents();
+  sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+  if (rows && rows.length) {
+    const values = rows.map(row => headers.map(h => row[h] === undefined || row[h] === null ? '' : row[h]));
+    sh.getRange(2, 1, values.length, headers.length).setValues(values);
+  }
+  sh.hideSheet();
+}
+
+function ensureSheet(ss, name) {
+  return ss.getSheetByName(name) || ss.insertSheet(name);
+}
+
+function enrichResumoVencimento(resumo, mesesVenc) {
+  return (resumo || []).map(r => ({
+    ...r,
+    Vencimento: String((mesesVenc && mesesVenc[r.Placa]) || r.Vencimento || '').trim()
+  }));
+}
+
+function mapAcompRow(r) {
+  return {
+    ...r,
+    'Intervalo(km)': toNum(r['Intervalo(km)']),
+    'KM Atual': toNum(r['KM Atual']),
+    'KM Últ.MNT': toNum(r['KM Últ.MNT']),
+    'KM Desde Últ.': toNum(r['KM Desde Últ.']),
+    'Próx.MNT(km)': toNum(r['Próx.MNT(km)']),
+    'KM p/ Próxima': toNum(r['KM p/ Próxima']),
+    'Qtd Deveria': toNum(r['Qtd Deveria']),
+    'Qtd Realizada': toNum(r['Qtd Realizada']),
+    'Qtd Pendente': toNum(r['Qtd Pendente']),
+    'Data Últ.MNT': toDateStr(r['Data Últ.MNT'])
+  };
+}
+
+function mapSemPlanoRow(r) {
+  return {
+    ...r,
+    'KM Atual': toNum(r['KM Atual'])
+  };
+}
+
+function mapHistoricoRow(r) {
+  return {
+    ...r,
+    'KM Manutenção': toNum(r['KM Manutenção']),
+    'Data Manutenção': toDateStr(r['Data Manutenção'])
+  };
+}
+
+function mapHistoricoMensalRow(r) {
+  return {
+    mes: String(r.mes || '').trim(),
+    preventiva: toNum(r.preventiva),
+    corretiva: toNum(r.corretiva),
+    total: toNum(r.total)
+  };
 }
 
 // ============================================================
@@ -586,13 +791,8 @@ function getResumoTable(filters, page, pageSize) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     page = page || 1;
     pageSize = pageSize || 50;
-    const cadastro = readCadastro(ss);
-    const plano    = readPlano(ss);
-    const historico = readHistorico(ss);
-    const computed = buildComputedViews(cadastro, plano, historico);
-    const resumoSh = readResumoSheet(ss);
-    const base     = resumoSh.length ? resumoSh : computed.resumo;
-    const all      = applyFilters(base, filters || {});
+    const base     = getDashboardBase(ss, false, false);
+    const all      = applyFilters(base.resumo, filters || {});
     const total    = all.length;
     const start    = (page - 1) * pageSize;
     const items    = all.slice(start, start + pageSize).map(r => ({
@@ -628,13 +828,8 @@ function getAcompanhamentoTable(filters, page, pageSize) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     page = page || 1;
     pageSize = pageSize || 50;
-    const cadastro  = readCadastro(ss);
-    const plano     = readPlano(ss);
-    const historico = readHistorico(ss);
-    const computed  = buildComputedViews(cadastro, plano, historico);
-    const acompSh   = readAcompSheet(ss);
-    const base      = acompSh.length ? acompSh : computed.acomp;
-    const all       = applyFilters(base, filters || {});
+    const base      = getDashboardBase(ss, false, false);
+    const all       = applyFilters(base.acomp, filters || {});
     const total     = all.length;
     const start     = (page - 1) * pageSize;
     const items     = all.slice(start, start + pageSize);
@@ -647,18 +842,11 @@ function getAcompanhamentoTable(filters, page, pageSize) {
 function getVehicleDetail(placa) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const cadastro  = readCadastro(ss);
-    const plano     = readPlano(ss);
-    const historico = readHistorico(ss);
-    const computed  = buildComputedViews(cadastro, plano, historico);
-    const acompSh   = readAcompSheet(ss);
-    const resumoSh  = readResumoSheet(ss);
-    const acompBase = acompSh.length ? acompSh : computed.acomp;
-    const resumoBase = resumoSh.length ? resumoSh : computed.resumo;
+    const base = getDashboardBase(ss, false, true);
 
-    const itens   = acompBase.filter(r => r.Placa === placa);
-    const resumo  = resumoBase.find(r => r.Placa === placa) || {};
-    const hist    = historico
+    const itens   = base.acomp.filter(r => r.Placa === placa);
+    const resumo  = base.resumo.find(r => r.Placa === placa) || {};
+    const hist    = base.historico
       .filter(r => r.Placa === placa)
       .sort((a, b) => parseDate(b['Data Manutenção']) - parseDate(a['Data Manutenção']))
       .slice(0, 50);
@@ -672,7 +860,8 @@ function getVehicleDetail(placa) {
 function getSemPlanoFull() {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    return { success: true, items: readSemPlano(ss) };
+    const base = getDashboardBase(ss, false, false);
+    return { success: true, items: base.semPlano };
   } catch (e) {
     return { success: false, error: e.message };
   }
